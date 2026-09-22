@@ -1,0 +1,12 @@
+name: MultiProtocol
+version: 1.0.0
+main: sova\multiprotocol\MultiProtocol
+api: 5.49.0
+load: STARTUP
+author: xvqrlz
+description: Multi-protocol translation layer for NetherGames PocketMine-MP
+
+permissions:
+  multiprotocol.command.protocols:
+    default: op
+    description: Allows to view supported protocols and connected client versions

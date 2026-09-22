@@ -1,0 +1,15 @@
+parameters:
+	level: 8
+	phpVersion: 80400
+	paths:
+		- src
+	scanFiles:
+		- ../reference/PocketMine-MP-NG/src/CoreConstants.php
+	scanDirectories:
+		- ../reference/PocketMine-MP-NG/src
+		- ../reference/PocketMine-MP-NG/generated
+		- ../reference/BedrockProtocol-NG/src
+	stubFiles:
+		- ../reference/PocketMine-MP-NG/tests/phpstan/stubs/pmmpthread.stub
+	treatPhpDocTypesAsCertain: false
+	reportUnmatchedIgnoredErrors: false

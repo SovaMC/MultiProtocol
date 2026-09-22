@@ -1,0 +1,117 @@
+<?php
+
+declare(strict_types=1);
+
+namespace sova\multiprotocol\translation\item;
+
+use InvalidArgumentException;
+use pocketmine\data\bedrock\item\downgrade\ItemIdMetaDowngrader;
+use pocketmine\data\bedrock\item\upgrade\ItemIdMetaUpgrader;
+use pocketmine\network\mcpe\protocol\serializer\ItemTypeDictionary;
+use sova\multiprotocol\packet\Direction;
+use function array_flip;
+use function array_key_exists;
+
+final class ItemMapping
+{
+	/** @var array<string, array{int, int}|null> */
+	private array $toClientCache = [];
+
+	/** @var array<string, array{int, int}|null> */
+	private array $toServerCache = [];
+
+	/** @var array<string, string> */
+	private readonly array $serverRenames;
+
+	/**
+	 * @param array<string, string> $clientRenames
+	 */
+	public function __construct(
+		public readonly ItemTypeDictionary $serverDictionary,
+		public readonly ItemTypeDictionary $clientDictionary,
+		private readonly ItemIdMetaUpgrader $upgrader,
+		private readonly ItemIdMetaDowngrader $clientDowngrader,
+		private readonly ItemIdMetaDowngrader $serverDowngrader,
+		private readonly array $clientRenames = []
+	) {
+		$this->serverRenames = array_flip($clientRenames);
+	}
+
+	/**
+	 * @return array{int, int}|null
+	 */
+	public function toClient(int $id, int $meta): ?array
+	{
+		if ($id === 0) {
+			return [0, 0];
+		}
+
+		$key = $id . ':' . $meta;
+		if (!array_key_exists($key, $this->toClientCache)) {
+			$this->toClientCache[$key] = $this->convert($this->serverDictionary, $this->clientDictionary, $this->clientDowngrader, $this->clientRenames, $id, $meta);
+		}
+
+		return $this->toClientCache[$key];
+	}
+
+	/**
+	 * @return array{int, int}|null
+	 */
+	public function toServer(int $id, int $meta): ?array
+	{
+		if ($id === 0) {
+			return [0, 0];
+		}
+
+		$key = $id . ':' . $meta;
+		if (!array_key_exists($key, $this->toServerCache)) {
+			$this->toServerCache[$key] = $this->convert($this->clientDictionary, $this->serverDictionary, $this->serverDowngrader, $this->serverRenames, $id, $meta);
+		}
+
+		return $this->toServerCache[$key];
+	}
+
+	/**
+	 * @return array{int, int}|null
+	 */
+	public function map(Direction $direction, int $id, int $meta): ?array
+	{
+		return $direction === Direction::CLIENTBOUND ? $this->toClient($id, $meta) : $this->toServer($id, $meta);
+	}
+
+	public function hasClientItem(string $stringId): bool
+	{
+		try {
+			$this->clientDictionary->fromStringId($stringId);
+			return true;
+		} catch (InvalidArgumentException) {
+			return false;
+		}
+	}
+
+	/**
+	 * @param array<string, string> $renames
+	 * @return array{int, int}|null
+	 */
+	private function convert(ItemTypeDictionary $from, ItemTypeDictionary $to, ItemIdMetaDowngrader $downgrader, array $renames, int $id, int $meta): ?array
+	{
+		try {
+			$stringId = $from->fromIntId($id);
+		} catch (InvalidArgumentException) {
+			return null;
+		}
+
+		if (isset($renames[$stringId])) {
+			[$targetId, $targetMeta] = [$renames[$stringId], $meta];
+		} else {
+			[$currentId, $currentMeta] = $this->upgrader->upgrade($stringId, $meta);
+			[$targetId, $targetMeta] = $downgrader->downgrade($currentId, $currentMeta);
+		}
+
+		try {
+			return [$to->fromStringId($targetId), $targetMeta];
+		} catch (InvalidArgumentException) {
+			return null;
+		}
+	}
+}

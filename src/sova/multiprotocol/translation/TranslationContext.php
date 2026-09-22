@@ -1,0 +1,34 @@
+<?php
+
+declare(strict_types=1);
+
+namespace sova\multiprotocol\translation;
+
+use sova\multiprotocol\translation\block\BlockMapping;
+use sova\multiprotocol\translation\block\ChunkTranslator;
+use sova\multiprotocol\translation\block\VariantTranslator;
+use sova\multiprotocol\translation\item\ItemTranslator;
+use sova\multiprotocol\translation\item\RecipeTranslator;
+use sova\multiprotocol\translation\item\TransactionTranslator;
+
+final readonly class TranslationContext
+{
+	public BlockMapping $blocks;
+	public ItemTranslator $items;
+	public ChunkTranslator $chunks;
+	public VariantTranslator $variants;
+	public TransactionTranslator $transactions;
+	public RecipeTranslator $recipes;
+
+	public function __construct(
+		public ProtocolMappings $mappings,
+		public int $codecProtocolId
+	) {
+		$this->blocks = $mappings->blocks;
+		$this->items = $mappings->itemTranslator;
+		$this->chunks = new ChunkTranslator($this->blocks);
+		$this->variants = new VariantTranslator($this->blocks);
+		$this->transactions = new TransactionTranslator($this->items, $this->blocks);
+		$this->recipes = new RecipeTranslator($this->items);
+	}
+}
