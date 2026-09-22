@@ -6,6 +6,7 @@ namespace sova\multiprotocol\protocol\v1_19_80\rewriter;
 
 use pocketmine\network\mcpe\protocol\serializer\ItemTypeDictionary;
 use pocketmine\network\mcpe\protocol\StartGamePacket;
+use pocketmine\network\mcpe\protocol\types\ServerTelemetryData;
 use sova\multiprotocol\packet\Direction;
 use sova\multiprotocol\packet\PacketWrapper;
 use sova\multiprotocol\packet\TypedPacketRewriter;
@@ -23,6 +24,14 @@ final class StartGameRewriter extends TypedPacketRewriter
 		int $codecProtocolId
 	) {
 		parent::__construct(StartGamePacket::class, $codecProtocolId, Direction::CLIENTBOUND);
+	}
+
+	protected function createPacket(): StartGamePacket
+	{
+		$packet = new StartGamePacket();
+		$packet->serverTelemetryData = new ServerTelemetryData('', '', '', '');
+
+		return $packet;
 	}
 
 	public function rewrite(PacketWrapper $packet): void

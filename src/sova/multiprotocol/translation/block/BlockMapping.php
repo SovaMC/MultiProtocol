@@ -9,6 +9,7 @@ use pocketmine\data\bedrock\block\BlockTypeNames;
 use pocketmine\network\mcpe\convert\BlockStateDictionaryEntry;
 use sova\multiprotocol\packet\Direction;
 use sova\multiprotocol\protocol\ProtocolException;
+use function array_map;
 
 final readonly class BlockMapping
 {
@@ -84,9 +85,9 @@ final readonly class BlockMapping
 	 */
 	private static function link(array $states, array $targetIndex, array $targetNames, int $fallback): array
 	{
-        return array_map(function ($state) use ($targetNames, $targetIndex, $fallback) {
-            return $targetIndex[self::key($state)] ?? $targetNames[$state->getName()] ?? $fallback;
-        }, $states);
+		return array_map(function ($state) use ($targetNames, $targetIndex, $fallback) {
+			return $targetIndex[self::key($state)] ?? $targetNames[$state->getName()] ?? $fallback;
+		}, $states);
 	}
 
 	private static function key(BlockStateData $state): string

@@ -41,6 +41,7 @@ use sova\multiprotocol\protocol\transport\EncryptionType;
 use sova\multiprotocol\session\handshake\LegacyHandshake;
 use sova\multiprotocol\session\handshake\LegacyLogin;
 use sova\multiprotocol\utils\Reflection;
+use Throwable;
 use function base64_encode;
 use function is_string;
 use function substr;
@@ -54,6 +55,7 @@ class MultiProtocolNetworkSession extends NetworkSession
 	private bool $handshakeInspected = false;
 	private bool $translationBypassed = false;
 	private bool $outboundDiscarded = false;
+	private bool $translationFailed = false;
 
 	public function __construct(
 		Server $server,
@@ -80,6 +82,17 @@ class MultiProtocolNetworkSession extends NetworkSession
 	public function isTranslated(): bool
 	{
 		return $this->protocolSession !== null;
+	}
+
+	public function tick(): void
+	{
+		if ($this->translationFailed && $this->isConnected()) {
+			$this->translationFailed = false;
+			$this->disconnectWithError('Protocol translation error');
+			return;
+		}
+
+		parent::tick();
 	}
 
 	public function handleEncoded(string $payload): void
@@ -355,6 +368,10 @@ class MultiProtocolNetworkSession extends NetworkSession
 		} catch (DataDecodeException|PacketDecodeException|ProtocolException $e) {
 			$this->dumpPacket('Serverbound', $buffer);
 			throw PacketHandlingException::wrap($e, 'Failed to translate packet ' . self::describePacket($buffer) . ' from ' . $this->describeClient());
+		} catch (Throwable $e) {
+			$this->getLogger()->logException($e);
+			$this->dumpPacket('Serverbound', $buffer);
+			throw PacketHandlingException::wrap($e, 'Internal error while translating packet ' . self::describePacket($buffer) . ' from ' . $this->describeClient());
 		}
 	}
 
@@ -368,6 +385,12 @@ class MultiProtocolNetworkSession extends NetworkSession
 		} catch (DataDecodeException|PacketDecodeException|ProtocolException $e) {
 			$this->getLogger()->error('Failed to translate packet ' . self::describePacket($buffer) . ' to ' . $this->describeClient() . ': ' . $e->getMessage());
 			$this->dumpPacket('Clientbound', $buffer);
+			return [];
+		} catch (Throwable $e) {
+			$this->getLogger()->error('Internal error while translating packet ' . self::describePacket($buffer) . ' to ' . $this->describeClient());
+			$this->getLogger()->logException($e);
+			$this->dumpPacket('Clientbound', $buffer);
+			$this->translationFailed = true;
 			return [];
 		}
 	}

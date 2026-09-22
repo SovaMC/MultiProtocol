@@ -32,7 +32,7 @@ abstract class TypedPacketRewriter extends AbstractPacketRewriter
 	 */
 	protected function peek(PacketWrapper $packet): DataPacket
 	{
-		return $packet->peek($this->packetClass, $this->codecProtocolId);
+		return $packet->peek($this->packetClass, $this->codecProtocolId, $this->createPacket(...));
 	}
 
 	/**
@@ -42,7 +42,15 @@ abstract class TypedPacketRewriter extends AbstractPacketRewriter
 	 */
 	protected function decode(PacketWrapper $packet): DataPacket
 	{
-		return $packet->decode($this->packetClass, $this->codecProtocolId);
+		return $packet->decode($this->packetClass, $this->codecProtocolId, $this->createPacket(...));
+	}
+
+	/**
+	 * @return T
+	 */
+	protected function createPacket(): DataPacket
+	{
+		return new ($this->packetClass)();
 	}
 
 	/**

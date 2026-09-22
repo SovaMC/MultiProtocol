@@ -17,6 +17,7 @@ use sova\multiprotocol\translation\block\BlockMapping;
 use sova\multiprotocol\translation\item\ItemMapping;
 use sova\multiprotocol\translation\item\ItemTranslator as ProtocolItemTranslator;
 use Symfony\Component\Filesystem\Path;
+use function array_map;
 
 final readonly class ProtocolMappings
 {
@@ -38,14 +39,14 @@ final readonly class ProtocolMappings
 	{
 		$typeConverter = TypeConverter::getInstance($serverProtocolId);
 
-        $serverStates = array_map(function ($entry) {
-            return $entry->generateCurrentStateData();
-        }, $typeConverter->getBlockTranslator()->getBlockStateDictionary()->getStates());
+		$serverStates = array_map(function ($entry) {
+			return $entry->generateCurrentStateData();
+		}, $typeConverter->getBlockTranslator()->getBlockStateDictionary()->getStates());
 
 		$upgrader = GlobalBlockStateHandlers::getUpgrader()->getBlockStateUpgrader();
-        $clientStates = array_map(function ($state) use ($upgrader) {
-            return $upgrader->upgrade($state);
-        }, BlockStateDictionary::loadPaletteFromString(Filesystem::fileGetContents(Path::join($dataPath, self::BLOCK_PALETTE_FILE))));
+		$clientStates = array_map(function ($state) use ($upgrader) {
+			return $upgrader->upgrade($state);
+		}, BlockStateDictionary::loadPaletteFromString(Filesystem::fileGetContents(Path::join($dataPath, self::BLOCK_PALETTE_FILE))));
 
 		$blocks = BlockMapping::build($serverStates, $clientStates);
 

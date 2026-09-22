@@ -123,15 +123,16 @@ final class PacketWrapper
 
 	/**
 	 * @template T of DataPacket
-	 * @param class-string<T> $class
+	 * @param class-string<T>     $class
+	 * @param (Closure(): T)|null $factory
 	 * @return T
 	 * @throws PacketDecodeException
 	 * @throws ProtocolException
 	 */
-	public function peek(string $class, int $protocolId): DataPacket
+	public function peek(string $class, int $protocolId, ?Closure $factory = null): DataPacket
 	{
 		if ($this->packet === null) {
-			$packet = new $class();
+			$packet = $factory !== null ? $factory() : new $class();
 			$packet->decode(new ByteBufferReader($this->buffer), $protocolId);
 			$this->packet = $packet;
 			$this->packetProtocolId = $protocolId;
@@ -146,14 +147,15 @@ final class PacketWrapper
 
 	/**
 	 * @template T of DataPacket
-	 * @param class-string<T> $class
+	 * @param class-string<T>     $class
+	 * @param (Closure(): T)|null $factory
 	 * @return T
 	 * @throws PacketDecodeException
 	 * @throws ProtocolException
 	 */
-	public function decode(string $class, int $protocolId): DataPacket
+	public function decode(string $class, int $protocolId, ?Closure $factory = null): DataPacket
 	{
-		$packet = $this->peek($class, $protocolId);
+		$packet = $this->peek($class, $protocolId, $factory);
 		$this->packetModified = true;
 
 		return $packet;
