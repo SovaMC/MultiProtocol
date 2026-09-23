@@ -20,8 +20,8 @@ final class PacketWrapper
 {
 	public readonly int $sourceId;
 
-	private readonly string $payload;
-	private readonly ByteBufferReader $reader;
+	private string $payload;
+	private ByteBufferReader $reader;
 	private ByteBufferWriter $writer;
 
 	private PacketHeader $header;
@@ -42,7 +42,7 @@ final class PacketWrapper
 	 * @throws DataDecodeException
 	 */
 	public function __construct(
-		private readonly string $buffer,
+		private string $buffer,
 		public readonly Direction $direction,
 		public readonly Protocol $protocol,
 		public readonly ProtocolSession $session
@@ -137,6 +137,7 @@ final class PacketWrapper
 	public function peek(string $class, int $protocolId, ?Closure $factory = null): DataPacket
 	{
 		if ($this->packet === null) {
+			$this->commitRaw();
 			$packet = $factory !== null ? $factory() : new $class();
 			$packet->decode(new ByteBufferReader($this->buffer), $protocolId);
 			$this->packet = $packet;
@@ -207,6 +208,18 @@ final class PacketWrapper
 		$this->passthroughAll();
 
 		return $this->writer->getData();
+	}
+
+	private function commitRaw(): void
+	{
+		if ($this->reader->getOffset() === 0 && $this->writer->getUsedLength() === 0) {
+			return;
+		}
+
+		$this->payload = $this->writer->getData() . substr($this->payload, $this->reader->getOffset());
+		$this->buffer = $this->header->encode() . $this->payload;
+		$this->reader = new ByteBufferReader($this->payload);
+		$this->writer = new ByteBufferWriter();
 	}
 
 	public function replacePayload(string $payload): void

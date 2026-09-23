@@ -16,18 +16,25 @@ use pocketmine\world\format\io\GlobalBlockStateHandlers;
 use Symfony\Component\Filesystem\Path;
 use function array_map;
 
-final readonly class ProtocolData
+final class ProtocolData
 {
 	public const string BLOCK_PALETTE_FILE = 'block_palette.nbt';
 	public const string ITEM_TABLE_FILE = 'item_table.json';
+	public const string ACTOR_IDENTIFIERS_FILE = 'entity_identifiers.nbt';
+
+	/** @var array<string, array<int, BlockStateData>> */
+	private static array $blockPalettes = [];
+
+	/** @var array<string, ItemTypeDictionary> */
+	private static array $itemTables = [];
 
 	/**
 	 * @param array<int, BlockStateData> $blockStates
 	 */
 	public function __construct(
-		public array $blockStates,
-		public ItemTypeDictionary $items,
-		public int $itemSchemaId
+		public readonly array $blockStates,
+		public readonly ItemTypeDictionary $items,
+		public readonly int $itemSchemaId
 	) {
 	}
 
@@ -50,15 +57,36 @@ final readonly class ProtocolData
 	 */
 	public static function load(string $dataPath, int $itemSchemaId): self
 	{
+		return self::fromFiles(
+			Path::join($dataPath, self::BLOCK_PALETTE_FILE),
+			Path::join($dataPath, self::ITEM_TABLE_FILE),
+			$itemSchemaId
+		);
+	}
+
+	/**
+	 * @throws NbtDataException
+	 */
+	public static function fromFiles(string $blockPaletteFile, string $itemTableFile, int $itemSchemaId): self
+	{
+		return new self(
+			self::$blockPalettes[$blockPaletteFile] ??= self::loadBlockPalette($blockPaletteFile),
+			self::$itemTables[$itemTableFile] ??= ItemTypeDictionaryFromDataHelper::loadFromString(Filesystem::fileGetContents($itemTableFile)),
+			$itemSchemaId
+		);
+	}
+
+	/**
+	 * @return array<int, BlockStateData>
+	 * @throws NbtDataException
+	 */
+	private static function loadBlockPalette(string $file): array
+	{
 		$upgrader = GlobalBlockStateHandlers::getUpgrader()->getBlockStateUpgrader();
 
-		return new self(
-			array_map(
-				static fn(BlockStateData $state) => $upgrader->upgrade($state),
-				BlockStateDictionary::loadPaletteFromString(Filesystem::fileGetContents(Path::join($dataPath, self::BLOCK_PALETTE_FILE)))
-			),
-			ItemTypeDictionaryFromDataHelper::loadFromString(Filesystem::fileGetContents(Path::join($dataPath, self::ITEM_TABLE_FILE))),
-			$itemSchemaId
+		return array_map(
+			static fn(BlockStateData $state) => $upgrader->upgrade($state),
+			BlockStateDictionary::loadPaletteFromString(Filesystem::fileGetContents($file))
 		);
 	}
 }

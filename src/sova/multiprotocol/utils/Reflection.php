@@ -5,12 +5,16 @@ declare(strict_types=1);
 namespace sova\multiprotocol\utils;
 
 use ReflectionException;
+use ReflectionMethod;
 use ReflectionProperty;
 
 final class Reflection
 {
 	/** @var array<string, ReflectionProperty> */
 	private static array $properties = [];
+
+	/** @var array<string, ReflectionMethod> */
+	private static array $methods = [];
 
 	private function __construct()
 	{
@@ -32,6 +36,15 @@ final class Reflection
 	public static function set(string $class, object $instance, string $property, mixed $value): void
 	{
 		self::property($class, $property)->setValue($instance, $value);
+	}
+
+	/**
+	 * @param class-string $class
+	 * @throws ReflectionException
+	 */
+	public static function invokeStatic(string $class, string $method, mixed ...$arguments): mixed
+	{
+		return (self::$methods[$class . '::' . $method] ??= new ReflectionMethod($class, $method))->invoke(null, ...$arguments);
 	}
 
 	/**

@@ -25,6 +25,10 @@ final class ClientDataPatcher
 {
 	private const string REQUIRED_ANNOTATION = '@required';
 
+	private const array KNOWN_DEFAULTS = [
+		'TrustedSkin' => true,
+	];
+
 	/** @var array<string, mixed>|null */
 	private static ?array $defaults = null;
 
@@ -78,7 +82,7 @@ final class ClientDataPatcher
 				continue;
 			}
 
-			$defaults[$property->getName()] = match ($type->getName()) {
+			$defaults[$property->getName()] = self::KNOWN_DEFAULTS[$property->getName()] ?? match ($type->getName()) {
 				'bool' => false,
 				'int' => 0,
 				'float' => 0.0,
