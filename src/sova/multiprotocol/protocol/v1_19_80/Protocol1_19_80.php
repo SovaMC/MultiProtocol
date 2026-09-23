@@ -15,6 +15,7 @@ use sova\multiprotocol\protocol\v1_19_80\rewriter\SmithingTrimRewriter;
 use sova\multiprotocol\protocol\v1_19_80\rewriter\StartGameRewriter;
 use sova\multiprotocol\protocol\v1_19_80\rewriter\UnlockedRecipesRewriter;
 use sova\multiprotocol\translation\actor\ActorIdentifiers;
+use sova\multiprotocol\translation\ProtocolData;
 use sova\multiprotocol\translation\ProtocolMappings;
 use sova\multiprotocol\translation\rewriter\StandardRewriters;
 use sova\multiprotocol\translation\TranslationContext;
@@ -38,6 +39,7 @@ final class Protocol1_19_80 extends Protocol
 		EntityIds::SNIFFER => EntityIds::PIG,
 	];
 
+	private ?ProtocolData $clientData = null;
 	private ?ProtocolMappings $mappings = null;
 
 	public function __construct(
@@ -70,9 +72,14 @@ final class Protocol1_19_80 extends Protocol
 			->cancel(Direction::CLIENTBOUND, ProtocolInfo::CAMERA_PRESETS_PACKET, ProtocolInfo::CAMERA_INSTRUCTION_PACKET);
 	}
 
+	public function getClientData(): ProtocolData
+	{
+		return $this->clientData ??= ProtocolData::load($this->dataPath, self::ITEM_SCHEMA_ID);
+	}
+
 	private function mappings(): ProtocolMappings
 	{
-		return $this->mappings ??= ProtocolMappings::load($this->dataPath, $this->targetProtocolId, self::ITEM_SCHEMA_ID, self::itemRenames());
+		return $this->mappings ??= ProtocolMappings::build(ProtocolData::native($this->targetProtocolId), $this->getClientData(), self::itemRenames());
 	}
 
 	/**

@@ -101,12 +101,21 @@ final class ItemMapping
 			return null;
 		}
 
-		if (isset($renames[$stringId])) {
-			[$targetId, $targetMeta] = [$renames[$stringId], $meta];
-		} else {
-			[$currentId, $currentMeta] = $this->upgrader->upgrade($stringId, $meta);
-			[$targetId, $targetMeta] = $downgrader->downgrade($currentId, $currentMeta);
+		$result = $this->lookup($to, $downgrader, $stringId, $meta);
+		if ($result === null && isset($renames[$stringId])) {
+			$result = $this->lookup($to, $downgrader, $renames[$stringId], $meta);
 		}
+
+		return $result;
+	}
+
+	/**
+	 * @return array{int, int}|null
+	 */
+	private function lookup(ItemTypeDictionary $to, ItemIdMetaDowngrader $downgrader, string $stringId, int $meta): ?array
+	{
+		[$currentId, $currentMeta] = $this->upgrader->upgrade($stringId, $meta);
+		[$targetId, $targetMeta] = $downgrader->downgrade($currentId, $currentMeta);
 
 		try {
 			return [$to->fromStringId($targetId), $targetMeta];

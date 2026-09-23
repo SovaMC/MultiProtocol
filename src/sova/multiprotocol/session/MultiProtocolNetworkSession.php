@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace sova\multiprotocol\session;
 
+use Closure;
 use pmmp\encoding\ByteBufferReader;
 use pmmp\encoding\ByteBufferWriter;
 use pmmp\encoding\DataDecodeException;
@@ -14,6 +15,7 @@ use pocketmine\network\mcpe\convert\TypeConverter;
 use pocketmine\network\mcpe\encryption\EncryptionContext;
 use pocketmine\network\mcpe\EntityEventBroadcaster;
 use pocketmine\network\mcpe\handler\HandshakePacketHandler;
+use pocketmine\network\mcpe\handler\LoginPacketHandler;
 use pocketmine\network\mcpe\handler\PacketHandler;
 use pocketmine\network\mcpe\NetworkSession;
 use pocketmine\network\mcpe\PacketBroadcaster;
@@ -40,6 +42,7 @@ use sova\multiprotocol\protocol\transport\CompressionType;
 use sova\multiprotocol\protocol\transport\EncryptionType;
 use sova\multiprotocol\session\handshake\LegacyHandshake;
 use sova\multiprotocol\session\handshake\LegacyLogin;
+use sova\multiprotocol\session\login\LenientLoginPacketHandler;
 use sova\multiprotocol\utils\Reflection;
 use Throwable;
 use function base64_encode;
@@ -216,6 +219,10 @@ class MultiProtocolNetworkSession extends NetworkSession
 
 	public function setHandler(?PacketHandler $handler): void
 	{
+		if ($handler instanceof LoginPacketHandler && !$handler instanceof LenientLoginPacketHandler && $this->protocolSession !== null) {
+			$handler = self::lenientLoginHandler($handler);
+		}
+
 		parent::setHandler($handler);
 
 		$transport = $this->protocolSession?->client->transport;
@@ -312,6 +319,22 @@ class MultiProtocolNetworkSession extends NetworkSession
 		$this->applyClientProtocol($pipeline);
 
 		return true;
+	}
+
+	private static function lenientLoginHandler(LoginPacketHandler $handler): LenientLoginPacketHandler
+	{
+		$argument = static fn(string $property): mixed => Reflection::get(LoginPacketHandler::class, $handler, $property);
+
+		$server = $argument('server');
+		$session = $argument('session');
+		$playerInfoConsumer = $argument('playerInfoConsumer');
+		$authCallback = $argument('authCallback');
+
+		if (!$server instanceof Server || !$session instanceof NetworkSession || !$playerInfoConsumer instanceof Closure || !$authCallback instanceof Closure) {
+			throw new ProtocolException('Unexpected LoginPacketHandler state');
+		}
+
+		return new LenientLoginPacketHandler($server, $session, $playerInfoConsumer, $authCallback);
 	}
 
 	private function applyClientProtocol(ProtocolPipeline $pipeline): void

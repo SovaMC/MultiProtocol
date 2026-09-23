@@ -9,9 +9,15 @@ use pmmp\encoding\ByteBufferReader;
 use pmmp\encoding\ByteBufferWriter;
 use pmmp\encoding\DataDecodeException;
 use pmmp\encoding\VarInt;
+use pocketmine\nbt\NbtDataException;
+use pocketmine\nbt\TreeRoot;
+use pocketmine\network\mcpe\protocol\serializer\NetworkNbtSerializer;
+use pocketmine\network\mcpe\protocol\types\DimensionIds;
+use pocketmine\network\mcpe\serializer\ChunkSerializer;
 use sova\multiprotocol\packet\Direction;
 use sova\multiprotocol\protocol\ProtocolException;
 use function intdiv;
+use function strlen;
 use function substr;
 
 final readonly class ChunkTranslator
@@ -22,6 +28,8 @@ final readonly class ChunkTranslator
 	private const int SUBCHUNK_VERSION_LAYERED = 8;
 	private const int SUBCHUNK_VERSION_INDEXED = 9;
 
+	private const int BIOME_COPY_PREVIOUS = 0x7f;
+
 	public function __construct(
 		private BlockMapping $blocks
 	) {
@@ -29,9 +37,10 @@ final readonly class ChunkTranslator
 
 	/**
 	 * @throws DataDecodeException
+	 * @throws NbtDataException
 	 * @throws ProtocolException
 	 */
-	public function translate(Direction $direction, string $payload, int $subChunkCount): string
+	public function translate(Direction $direction, string $payload, int $subChunkCount, ?BlockActorTranslator $blockActors = null, int $dimension = DimensionIds::OVERWORLD): string
 	{
 		$in = new ByteBufferReader($payload);
 		$out = new ByteBufferWriter();
@@ -40,9 +49,68 @@ final readonly class ChunkTranslator
 			$this->translateSubChunk($direction, $in, $out);
 		}
 
+		if ($blockActors !== null) {
+			$start = $in->getOffset();
+			for ($i = 0, $count = self::biomeSectionCount($dimension); $i < $count; ++$i) {
+				self::skipBiomePalette($in);
+			}
+			$in->readByteArray(Byte::readUnsigned($in));
+			$out->writeByteArray(substr($payload, $start, $in->getOffset() - $start));
+
+			$this->translateBlockActors($direction, $payload, $in->getOffset(), $out, $blockActors);
+
+			return $out->getData();
+		}
+
 		$out->writeByteArray(substr($payload, $in->getOffset()));
 
 		return $out->getData();
+	}
+
+	/**
+	 * @throws NbtDataException
+	 */
+	private function translateBlockActors(Direction $direction, string $payload, int $offset, ByteBufferWriter $out, BlockActorTranslator $blockActors): void
+	{
+		$serializer = new NetworkNbtSerializer();
+		$length = strlen($payload);
+
+		while ($offset < $length) {
+			$nbt = $serializer->read($payload, $offset)->mustGetCompoundTag();
+			$out->writeByteArray($serializer->write(new TreeRoot($blockActors->translate($direction, $nbt))));
+		}
+	}
+
+	private static function biomeSectionCount(int $dimension): int
+	{
+		[$minSubChunk, $maxSubChunk] = ChunkSerializer::getDimensionChunkBounds(match ($dimension) {
+			DimensionIds::NETHER => DimensionIds::NETHER,
+			DimensionIds::THE_END => DimensionIds::THE_END,
+			default => DimensionIds::OVERWORLD,
+		});
+
+		return $maxSubChunk - $minSubChunk + 1;
+	}
+
+	/**
+	 * @throws DataDecodeException
+	 */
+	private static function skipBiomePalette(ByteBufferReader $in): void
+	{
+		$bitsPerBlock = Byte::readUnsigned($in) >> 1;
+		if ($bitsPerBlock === self::BIOME_COPY_PREVIOUS) {
+			return;
+		}
+
+		if ($bitsPerBlock !== 0) {
+			$blocksPerWord = intdiv(32, $bitsPerBlock);
+			$in->readByteArray(intdiv(self::BLOCKS_PER_SUBCHUNK + $blocksPerWord - 1, $blocksPerWord) * 4);
+		}
+
+		$paletteSize = $bitsPerBlock !== 0 ? VarInt::readSignedInt($in) : 1;
+		for ($i = 0; $i < $paletteSize; ++$i) {
+			VarInt::readSignedInt($in);
+		}
 	}
 
 	/**

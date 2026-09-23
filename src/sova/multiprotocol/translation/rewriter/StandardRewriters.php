@@ -8,6 +8,8 @@ use sova\multiprotocol\packet\PacketRewriter;
 use sova\multiprotocol\translation\actor\ActorIdentifiers;
 use sova\multiprotocol\translation\rewriter\actor\ActorIdentifiersRewriter;
 use sova\multiprotocol\translation\rewriter\actor\ActorTypeRewriter;
+use sova\multiprotocol\translation\rewriter\block\BlockActorDataRewriter;
+use sova\multiprotocol\translation\rewriter\block\ChangeDimensionRewriter;
 use sova\multiprotocol\translation\rewriter\block\FallingBlockDataRewriter;
 use sova\multiprotocol\translation\rewriter\block\FallingBlockRemoveRewriter;
 use sova\multiprotocol\translation\rewriter\block\FallingBlockSpawnRewriter;
@@ -42,7 +44,8 @@ final class StandardRewriters
 	 */
 	public static function blocks(TranslationContext $context): array
 	{
-		return [
+		$rewriters = [
+			new ChangeDimensionRewriter($context->codecProtocolId),
 			new LevelChunkRewriter($context),
 			new UpdateBlockRewriter($context),
 			new UpdateBlockSyncedRewriter($context),
@@ -53,6 +56,12 @@ final class StandardRewriters
 			new FallingBlockDataRewriter($context),
 			new FallingBlockRemoveRewriter($context),
 		];
+
+		if ($context->blockActors !== null) {
+			$rewriters[] = new BlockActorDataRewriter($context->blockActors, $context->codecProtocolId);
+		}
+
+		return $rewriters;
 	}
 
 	/**

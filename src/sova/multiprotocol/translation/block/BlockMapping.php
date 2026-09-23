@@ -28,8 +28,9 @@ final readonly class BlockMapping
 	/**
 	 * @param array<int, BlockStateData> $serverStates
 	 * @param array<int, BlockStateData> $clientStates
+	 * @param array<string, string>      $clientRenames
 	 */
-	public static function build(array $serverStates, array $clientStates): self
+	public static function build(array $serverStates, array $clientStates, array $clientRenames = []): self
 	{
 		[$serverIndex, $serverNames] = self::index($serverStates);
 		[$clientIndex, $clientNames] = self::index($clientStates);
@@ -38,8 +39,8 @@ final readonly class BlockMapping
 		$serverFallback = $serverIndex[self::fallbackKey()] ?? throw new ProtocolException('Server palette has no ' . BlockTypeNames::INFO_UPDATE);
 
 		return new self(
-			self::link($serverStates, $clientIndex, $clientNames, $clientFallback),
-			self::link($clientStates, $serverIndex, $serverNames, $serverFallback),
+			self::link($serverStates, $clientIndex, $clientNames, $clientFallback, $clientRenames),
+			self::link($clientStates, $serverIndex, $serverNames, $serverFallback, []),
 			$clientFallback,
 			$serverFallback
 		);
@@ -70,7 +71,7 @@ final readonly class BlockMapping
 		$byName = [];
 
 		foreach ($states as $runtimeId => $state) {
-			$byKey[self::key($state)] ??= $runtimeId;
+			$byKey[self::key($state->getName(), $state)] ??= $runtimeId;
 			$byName[$state->getName()] ??= $runtimeId;
 		}
 
@@ -81,18 +82,27 @@ final readonly class BlockMapping
 	 * @param array<int, BlockStateData> $states
 	 * @param array<string, int>         $targetIndex
 	 * @param array<string, int>         $targetNames
+	 * @param array<string, string>      $renames
 	 * @return array<int, int>
 	 */
-	private static function link(array $states, array $targetIndex, array $targetNames, int $fallback): array
+	private static function link(array $states, array $targetIndex, array $targetNames, int $fallback, array $renames): array
 	{
-		return array_map(function ($state) use ($targetNames, $targetIndex, $fallback) {
-			return $targetIndex[self::key($state)] ?? $targetNames[$state->getName()] ?? $fallback;
+		return array_map(static function (BlockStateData $state) use ($targetIndex, $targetNames, $fallback, $renames): int {
+			$name = $state->getName();
+			$runtimeId = $targetIndex[self::key($name, $state)] ?? $targetNames[$name] ?? null;
+			if ($runtimeId !== null || !isset($renames[$name])) {
+				return $runtimeId ?? $fallback;
+			}
+
+			$renamed = $renames[$name];
+
+			return $targetIndex[self::key($renamed, $state)] ?? $targetNames[$renamed] ?? $fallback;
 		}, $states);
 	}
 
-	private static function key(BlockStateData $state): string
+	private static function key(string $name, BlockStateData $state): string
 	{
-		return $state->getName() . "\x00" . BlockStateDictionaryEntry::encodeStateProperties($state->getStates());
+		return $name . "\x00" . BlockStateDictionaryEntry::encodeStateProperties($state->getStates());
 	}
 
 	private static function fallbackKey(): string

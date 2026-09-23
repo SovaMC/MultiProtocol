@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace sova\multiprotocol\translation;
 
+use sova\multiprotocol\translation\block\BlockActorTranslator;
 use sova\multiprotocol\translation\block\BlockMapping;
 use sova\multiprotocol\translation\block\ChunkTranslator;
 use sova\multiprotocol\translation\block\VariantTranslator;
@@ -22,7 +23,8 @@ final readonly class TranslationContext
 
 	public function __construct(
 		public ProtocolMappings $mappings,
-		public int $codecProtocolId
+		public int $codecProtocolId,
+		public ?BlockActorTranslator $blockActors = null
 	) {
 		$this->blocks = $mappings->blocks;
 		$this->items = $mappings->itemTranslator;

@@ -10,6 +10,7 @@ use pocketmine\network\mcpe\protocol\types\ServerTelemetryData;
 use sova\multiprotocol\packet\Direction;
 use sova\multiprotocol\packet\PacketWrapper;
 use sova\multiprotocol\packet\TypedPacketRewriter;
+use sova\multiprotocol\translation\block\DimensionTracker;
 use function substr;
 
 /**
@@ -36,7 +37,9 @@ final class StartGameRewriter extends TypedPacketRewriter
 
 	public function rewrite(PacketWrapper $packet): void
 	{
-		$this->decode($packet)->itemTable = $this->clientItems->getEntries();
+		$startGame = $this->decode($packet);
+		$startGame->itemTable = $this->clientItems->getEntries();
+		$packet->session->get(DimensionTracker::class)->setDimension($startGame->levelSettings->spawnSettings->getDimension());
 
 		$packet->replacePayload(substr($packet->getPayload(), 0, -self::NETWORK_PERMISSIONS_LENGTH));
 	}

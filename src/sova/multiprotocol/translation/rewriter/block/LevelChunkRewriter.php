@@ -8,6 +8,7 @@ use pocketmine\network\mcpe\protocol\LevelChunkPacket;
 use sova\multiprotocol\packet\Direction;
 use sova\multiprotocol\packet\PacketWrapper;
 use sova\multiprotocol\packet\TypedPacketRewriter;
+use sova\multiprotocol\translation\block\DimensionTracker;
 use sova\multiprotocol\translation\TranslationContext;
 use sova\multiprotocol\utils\Reflection;
 
@@ -33,7 +34,13 @@ final class LevelChunkRewriter extends TypedPacketRewriter
 			LevelChunkPacket::class,
 			$chunk,
 			'extraPayload',
-			$this->context->chunks->translate($packet->direction, $chunk->getExtraPayload(), $chunk->getSubChunkCount())
+			$this->context->chunks->translate(
+				$packet->direction,
+				$chunk->getExtraPayload(),
+				$chunk->getSubChunkCount(),
+				$this->context->blockActors,
+				$packet->session->get(DimensionTracker::class)->getDimension()
+			)
 		);
 	}
 }

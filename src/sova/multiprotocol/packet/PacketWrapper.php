@@ -65,6 +65,11 @@ final class PacketWrapper
 		$this->header->id = $id;
 	}
 
+	public function getBuffer(): string
+	{
+		return $this->buffer;
+	}
+
 	public function getHeader(): PacketHeader
 	{
 		return $this->header;
