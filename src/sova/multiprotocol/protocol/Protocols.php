@@ -16,7 +16,6 @@ use sova\multiprotocol\protocol\v1_19_63\Protocol1_19_63;
 use sova\multiprotocol\protocol\v1_19_70\Protocol1_19_70;
 use sova\multiprotocol\protocol\v1_19_70_24\Protocol1_19_70_24;
 use sova\multiprotocol\protocol\v1_19_80\Protocol1_19_80;
-use Symfony\Component\Filesystem\Path;
 
 final class Protocols
 {
@@ -29,14 +28,10 @@ final class Protocols
 	 */
 	public static function all(string $dataPath): array
 	{
-		$v1_19_80 = new Protocol1_19_80(Path::join($dataPath, (string) Protocol1_19_80::PROTOCOL));
-		$v1_19_70 = new Protocol1_19_70(Path::join($dataPath, (string) Protocol1_19_70::PROTOCOL), $v1_19_80);
-		$v1_19_70_24 = new Protocol1_19_70_24($v1_19_70);
-
 		return [
-			$v1_19_80,
-			$v1_19_70,
-			$v1_19_70_24,
+			new Protocol1_19_80($dataPath),
+			new Protocol1_19_70($dataPath),
+			new Protocol1_19_70_24($dataPath),
 			new Protocol1_19_63($dataPath),
 			new Protocol1_19_60($dataPath),
 			new Protocol1_19_50($dataPath),

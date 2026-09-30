@@ -21,6 +21,7 @@ use sova\multiprotocol\packet\TypedPacketRewriter;
 use sova\multiprotocol\protocol\v1_19_10\Protocol1_19_10;
 use sova\multiprotocol\protocol\v1_19_20\Protocol1_19_20;
 use sova\multiprotocol\protocol\v1_19_60\Protocol1_19_60;
+use sova\multiprotocol\protocol\v1_19_80\Protocol1_19_80;
 use sova\multiprotocol\translation\block\DimensionTracker;
 use function count;
 
@@ -97,6 +98,9 @@ final class StartGameRewriter extends TypedPacketRewriter
 		if ($this->isAtLeast(Protocol1_19_20::PROTOCOL)) {
 			CommonTypes::putBool($out, $startGame->enableClientSideChunkGeneration);
 		}
+		if ($this->isAtLeast(Protocol1_19_80::PROTOCOL)) {
+			CommonTypes::putBool($out, $startGame->blockNetworkIdsAreHashes);
+		}
 	}
 
 	private function writeLevelSettings(ByteBufferWriter $out, LevelSettings $settings): void
@@ -110,6 +114,10 @@ final class StartGameRewriter extends TypedPacketRewriter
 		CommonTypes::putBool($out, $settings->hasAchievementsDisabled);
 		if ($this->isAtLeast(Protocol1_19_10::PROTOCOL)) {
 			CommonTypes::putBool($out, $settings->editorWorldType !== EditorWorldType::NON_EDITOR);
+		}
+		if ($this->isAtLeast(Protocol1_19_80::PROTOCOL)) {
+			CommonTypes::putBool($out, $settings->createdInEditorMode);
+			CommonTypes::putBool($out, $settings->exportedFromEditorMode);
 		}
 		VarInt::writeSignedInt($out, $settings->time);
 		VarInt::writeSignedInt($out, $settings->eduEditionOffer);

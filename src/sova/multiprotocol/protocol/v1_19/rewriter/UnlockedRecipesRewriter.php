@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace sova\multiprotocol\protocol\v1_19_80\rewriter;
+namespace sova\multiprotocol\protocol\v1_19\rewriter;
 
 use pmmp\encoding\LE;
 use pocketmine\network\mcpe\protocol\ProtocolInfo;

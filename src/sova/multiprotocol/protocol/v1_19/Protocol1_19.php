@@ -19,9 +19,11 @@ use sova\multiprotocol\protocol\v1_19\rewriter\ActorFlagsRewriter;
 use sova\multiprotocol\protocol\v1_19\rewriter\AddActorRewriter;
 use sova\multiprotocol\protocol\v1_19\rewriter\AddPlayerRewriter;
 use sova\multiprotocol\protocol\v1_19\rewriter\AdventureSettingsRewriter;
+use sova\multiprotocol\protocol\v1_19\rewriter\AvailableCommandsRewriter;
 use sova\multiprotocol\protocol\v1_19\rewriter\ClientboundMapItemDataRewriter;
 use sova\multiprotocol\protocol\v1_19\rewriter\CommandRequestRewriter;
 use sova\multiprotocol\protocol\v1_19\rewriter\CraftingDataRewriter;
+use sova\multiprotocol\protocol\v1_19\rewriter\EmoteRewriter;
 use sova\multiprotocol\protocol\v1_19\rewriter\ItemStackRequestRewriter;
 use sova\multiprotocol\protocol\v1_19\rewriter\ItemStackResponseRewriter;
 use sova\multiprotocol\protocol\v1_19\rewriter\MapInfoRequestRewriter;
@@ -30,10 +32,13 @@ use sova\multiprotocol\protocol\v1_19\rewriter\NetworkChunkPublisherUpdateRewrit
 use sova\multiprotocol\protocol\v1_19\rewriter\PlayerAuthInputRewriter;
 use sova\multiprotocol\protocol\v1_19\rewriter\PlayerListRewriter;
 use sova\multiprotocol\protocol\v1_19\rewriter\PlayerSkinRewriter;
+use sova\multiprotocol\protocol\v1_19\rewriter\RequestChunkRadiusRewriter;
 use sova\multiprotocol\protocol\v1_19\rewriter\SetActorDataRewriter;
+use sova\multiprotocol\protocol\v1_19\rewriter\SmithingRecipesRewriter;
 use sova\multiprotocol\protocol\v1_19\rewriter\StartGameRewriter;
 use sova\multiprotocol\protocol\v1_19\rewriter\StructureBlockUpdateRewriter;
 use sova\multiprotocol\protocol\v1_19\rewriter\TextRewriter;
+use sova\multiprotocol\protocol\v1_19\rewriter\UnlockedRecipesRewriter;
 use sova\multiprotocol\protocol\v1_19\rewriter\UpdateAttributesRewriter;
 use sova\multiprotocol\protocol\v1_19_10\Protocol1_19_10;
 use sova\multiprotocol\protocol\v1_19_20\Protocol1_19_20;
@@ -42,10 +47,8 @@ use sova\multiprotocol\protocol\v1_19_40\Protocol1_19_40;
 use sova\multiprotocol\protocol\v1_19_50\Protocol1_19_50;
 use sova\multiprotocol\protocol\v1_19_60\Protocol1_19_60;
 use sova\multiprotocol\protocol\v1_19_63\Protocol1_19_63;
-use sova\multiprotocol\protocol\v1_19_70\rewriter\AvailableCommandsRewriter;
-use sova\multiprotocol\protocol\v1_19_70\rewriter\RequestChunkRadiusRewriter;
-use sova\multiprotocol\protocol\v1_19_70\rewriter\SmithingRecipesRewriter;
-use sova\multiprotocol\protocol\v1_19_80\rewriter\EmoteRewriter;
+use sova\multiprotocol\protocol\v1_19_70\Protocol1_19_70;
+use sova\multiprotocol\protocol\v1_19_80\Protocol1_19_80;
 use sova\multiprotocol\translation\ability\AbilitiesFilter;
 use sova\multiprotocol\translation\actor\ActorIdentifiers;
 use sova\multiprotocol\translation\block\LegacySignTranslator;
@@ -161,7 +164,7 @@ abstract class Protocol1_19 extends Protocol
 
 	protected function registerPackets(PacketRegistry $packets): void
 	{
-		$context = new TranslationContext($this->mappings(), self::CODEC_PROTOCOL, new LegacySignTranslator());
+		$context = new TranslationContext($this->mappings(), self::CODEC_PROTOCOL, $this->isBefore(Protocol1_19_80::PROTOCOL) ? new LegacySignTranslator() : null);
 		$identifiers = ActorIdentifiers::load($this->resources->getActorIdentifiersFile(), self::ACTOR_OVERRIDES);
 
 		$this->registerServerbound($packets);
@@ -170,8 +173,7 @@ abstract class Protocol1_19 extends Protocol
 			->add(
 				new StartGameRewriter($context->mappings->items->clientDictionary, $this->version->id, self::CODEC_PROTOCOL),
 				new EmoteRewriter(),
-				new AvailableCommandsRewriter(self::CODEC_PROTOCOL),
-				new SmithingRecipesRewriter(self::CODEC_PROTOCOL)
+				new SmithingRecipesRewriter(!$this->isBefore(Protocol1_19_80::PROTOCOL), self::CODEC_PROTOCOL)
 			)
 			->add(...StandardRewriters::blocks($context))
 			->add(...StandardRewriters::items($context))
@@ -179,17 +181,7 @@ abstract class Protocol1_19 extends Protocol
 
 		$this->registerClientbound($packets, $context);
 
-		$packets
-			->cancel(
-				Direction::CLIENTBOUND,
-				ProtocolInfo::CAMERA_PRESETS_PACKET,
-				ProtocolInfo::CAMERA_INSTRUCTION_PACKET,
-				ProtocolInfo::UNLOCKED_RECIPES_PACKET,
-				ProtocolInfo::OPEN_SIGN_PACKET,
-				ProtocolInfo::TRIM_DATA_PACKET,
-				ProtocolInfo::COMPRESSED_BIOME_DEFINITION_LIST_PACKET
-			)
-			->cancel(Direction::SERVERBOUND, self::PHOTO_INFO_REQUEST_PACKET);
+		$packets->cancel(Direction::CLIENTBOUND, ProtocolInfo::CAMERA_PRESETS_PACKET, ProtocolInfo::CAMERA_INSTRUCTION_PACKET);
 
 		$this->cancelMissingPackets($packets);
 		$this->registerVersionPackets($packets);
@@ -214,11 +206,14 @@ abstract class Protocol1_19 extends Protocol
 			$slots
 		) : null;
 
-		$packets->add(
-			new PlayerAuthInputRewriter(self::CODEC_PROTOCOL, $requests),
-			new RequestChunkRadiusRewriter()
-		);
-
+		if ($this->isBefore(Protocol1_19_70::PROTOCOL)) {
+			$packets->add(new PlayerAuthInputRewriter(self::CODEC_PROTOCOL, $requests));
+		}
+		if ($this->isBefore(Protocol1_19_80::PROTOCOL)) {
+			$packets
+				->add(new RequestChunkRadiusRewriter())
+				->cancel(Direction::SERVERBOUND, self::PHOTO_INFO_REQUEST_PACKET);
+		}
 		if ($requests !== null) {
 			$packets->add(new ItemStackRequestRewriter($requests, self::CODEC_PROTOCOL));
 		}
@@ -238,23 +233,31 @@ abstract class Protocol1_19 extends Protocol
 
 	private function registerClientbound(PacketRegistry $packets, TranslationContext $context): void
 	{
+		if ($this->isBefore(Protocol1_19_80::PROTOCOL)) {
+			$packets->add(new AvailableCommandsRewriter(self::CODEC_PROTOCOL));
+		}
+
+		if ($this->isBefore(Protocol1_19_70::PROTOCOL)) {
+			$packets->cancel(Direction::CLIENTBOUND, ProtocolInfo::UNLOCKED_RECIPES_PACKET);
+		} else {
+			$packets->add(new UnlockedRecipesRewriter());
+		}
+
 		$abilities = new AbilitiesFilter(self::REMOVED_ABILITIES);
-		if (!$this->isBefore(Protocol1_19_10::PROTOCOL)) {
+		if (!$this->isBefore(Protocol1_19_10::PROTOCOL) && $this->isBefore(Protocol1_19_70::PROTOCOL)) {
 			$packets->add(
 				new UpdateAbilitiesRewriter($abilities, self::CODEC_PROTOCOL),
 				new AddPlayerAbilitiesRewriter($abilities, self::CODEC_PROTOCOL)
 			);
 		}
 
-		$skins = new SkinFormat(
-			self::CODEC_PROTOCOL,
-			!$this->isBefore(Protocol1_19_63::PROTOCOL),
-			!$this->isBefore(Protocol1_19_60::PROTOCOL)
-		);
-		$packets->add(
-			new PlayerListRewriter($skins, self::CODEC_PROTOCOL),
-			new PlayerSkinRewriter($skins, self::CODEC_PROTOCOL)
-		);
+		if ($this->isBefore(Protocol1_19_63::PROTOCOL)) {
+			$skins = new SkinFormat(self::CODEC_PROTOCOL);
+			$packets->add(
+				new PlayerListRewriter($skins, self::CODEC_PROTOCOL),
+				new PlayerSkinRewriter($skins, self::CODEC_PROTOCOL)
+			);
+		}
 
 		if ($this->isBefore(Protocol1_19_50::PROTOCOL)) {
 			$flags = new EntityFlagsTranslator([self::CAN_DASH_FLAG]);
@@ -298,6 +301,7 @@ abstract class Protocol1_19 extends Protocol
 	private function cancelMissingPackets(PacketRegistry $packets): void
 	{
 		$missing = [
+			Protocol1_19_80::PROTOCOL => [ProtocolInfo::OPEN_SIGN_PACKET, ProtocolInfo::TRIM_DATA_PACKET, ProtocolInfo::COMPRESSED_BIOME_DEFINITION_LIST_PACKET],
 			Protocol1_19_50::PROTOCOL => [ProtocolInfo::UPDATE_CLIENT_INPUT_LOCKS_PACKET],
 			Protocol1_19_30::PROTOCOL => [ProtocolInfo::SERVER_STATS_PACKET],
 			Protocol1_19_20::PROTOCOL => [ProtocolInfo::FEATURE_REGISTRY_PACKET],

@@ -32,7 +32,7 @@ final class PlayerListRewriter extends TypedPacketRewriter
 
 	public function rewrite(PacketWrapper $packet): void
 	{
-		if ($this->skins->isNative($packet->session) || $this->peek($packet)->type !== PlayerListPacket::TYPE_ADD) {
+		if ($this->skins->hasOverrideFlag($packet->session) || $this->peek($packet)->type !== PlayerListPacket::TYPE_ADD) {
 			return;
 		}
 
@@ -48,7 +48,7 @@ final class PlayerListRewriter extends TypedPacketRewriter
 			CommonTypes::putString($out, $entry->xboxUserId);
 			CommonTypes::putString($out, $entry->platformChatId);
 			LE::writeSignedInt($out, $entry->buildPlatform);
-			$this->skins->write($out, $entry->skinData, $packet->session);
+			$this->skins->write($out, $entry->skinData);
 			CommonTypes::putBool($out, $entry->isTeacher);
 			CommonTypes::putBool($out, $entry->isHost);
 		}

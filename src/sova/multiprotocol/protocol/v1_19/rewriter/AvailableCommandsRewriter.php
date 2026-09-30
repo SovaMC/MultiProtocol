@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace sova\multiprotocol\protocol\v1_19_70\rewriter;
+namespace sova\multiprotocol\protocol\v1_19\rewriter;
 
 use pocketmine\network\mcpe\protocol\AvailableCommandsPacket;
 use pocketmine\network\mcpe\protocol\types\command\raw\CommandOverloadRawData;
