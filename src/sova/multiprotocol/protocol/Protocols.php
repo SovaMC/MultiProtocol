@@ -4,6 +4,12 @@ declare(strict_types=1);
 
 namespace sova\multiprotocol\protocol;
 
+use sova\multiprotocol\protocol\v1_16_0\Protocol1_16_0;
+use sova\multiprotocol\protocol\v1_16_100\Protocol1_16_100;
+use sova\multiprotocol\protocol\v1_16_20\Protocol1_16_20;
+use sova\multiprotocol\protocol\v1_16_200\Protocol1_16_200;
+use sova\multiprotocol\protocol\v1_16_210\Protocol1_16_210;
+use sova\multiprotocol\protocol\v1_16_220\Protocol1_16_220;
 use sova\multiprotocol\protocol\v1_17_0\Protocol1_17_0;
 use sova\multiprotocol\protocol\v1_17_10\Protocol1_17_10;
 use sova\multiprotocol\protocol\v1_17_30\Protocol1_17_30;
@@ -55,6 +61,12 @@ final class Protocols
 			new Protocol1_17_30($dataPath),
 			new Protocol1_17_10($dataPath),
 			new Protocol1_17_0($dataPath),
+			new Protocol1_16_220($dataPath),
+			new Protocol1_16_210($dataPath),
+			new Protocol1_16_200($dataPath),
+			new Protocol1_16_100($dataPath),
+			new Protocol1_16_20($dataPath),
+			new Protocol1_16_0($dataPath),
 		];
 	}
 }

@@ -15,6 +15,7 @@ use sova\multiprotocol\packet\TypedPacketRewriter;
 use sova\multiprotocol\protocol\v1_18_30\Protocol1_18_30;
 use sova\multiprotocol\protocol\v1_19_10\Protocol1_19_10;
 use sova\multiprotocol\translation\ability\LegacyAdventureSettings;
+use sova\multiprotocol\translation\item\LegacyItemCodec;
 use function count;
 
 /**
@@ -24,7 +25,8 @@ final class AddPlayerRewriter extends TypedPacketRewriter
 {
 	public function __construct(
 		private readonly int $clientProtocolId,
-		int $codecProtocolId
+		int $codecProtocolId,
+		private readonly ?LegacyItemCodec $legacyItems = null
 	) {
 		parent::__construct(AddPlayerPacket::class, $codecProtocolId, Direction::CLIENTBOUND);
 	}
@@ -47,7 +49,11 @@ final class AddPlayerRewriter extends TypedPacketRewriter
 		LE::writeFloat($out, $player->pitch);
 		LE::writeFloat($out, $player->yaw);
 		LE::writeFloat($out, $player->headYaw);
-		CommonTypes::putItemStackWrapper($out, $this->codecProtocolId, $player->item, false);
+		if ($this->legacyItems !== null) {
+			$this->legacyItems->write($out, $player->item->getItemStack());
+		} else {
+			CommonTypes::putItemStackWrapper($out, $this->codecProtocolId, $player->item, false);
+		}
 		if ($this->clientProtocolId >= Protocol1_18_30::PROTOCOL) {
 			VarInt::writeSignedInt($out, $player->gameMode);
 		}

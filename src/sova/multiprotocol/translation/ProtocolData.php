@@ -21,6 +21,7 @@ final class ProtocolData
 	public const string BLOCK_PALETTE_FILE = 'block_palette.nbt';
 	public const string ITEM_TABLE_FILE = 'item_table.json';
 	public const string ACTOR_IDENTIFIERS_FILE = 'entity_identifiers.nbt';
+	public const string START_GAME_PALETTE_FILE = 'start_game_palette.nbt';
 
 	/** @var array<string, array<int, BlockStateData>> */
 	private static array $blockPalettes = [];

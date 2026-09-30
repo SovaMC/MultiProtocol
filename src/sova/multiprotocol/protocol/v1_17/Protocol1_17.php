@@ -79,7 +79,7 @@ abstract class Protocol1_17 extends Protocol1_18
 			$packets->add(
 				new AvailableCommandsRewriter(self::CODEC_PROTOCOL),
 				new SetTitleRewriter(),
-				new ResourcePacksInfoRewriter(),
+				new ResourcePacksInfoRewriter($this->version->id, self::CODEC_PROTOCOL),
 				new NpcRequestRewriter(),
 				new ParticleRewriter(self::CODEC_PROTOCOL)
 			);

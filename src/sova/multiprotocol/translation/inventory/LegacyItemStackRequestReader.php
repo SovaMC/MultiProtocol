@@ -12,10 +12,14 @@ use pmmp\encoding\VarInt;
 use pocketmine\network\mcpe\protocol\PacketDecodeException;
 use pocketmine\network\mcpe\protocol\serializer\CommonTypes;
 use pocketmine\network\mcpe\protocol\types\inventory\stackrequest\CraftRecipeAutoStackRequestAction;
+use pocketmine\network\mcpe\protocol\types\inventory\stackrequest\DeprecatedCraftingResultsEntry;
+use pocketmine\network\mcpe\protocol\types\inventory\stackrequest\DeprecatedCraftingResultsStackRequestAction;
 use pocketmine\network\mcpe\protocol\types\inventory\stackrequest\ItemStackRequest;
 use pocketmine\network\mcpe\protocol\types\inventory\stackrequest\ItemStackRequestAction;
 use pocketmine\network\mcpe\protocol\types\inventory\stackrequest\ItemStackRequestActionType;
+use pocketmine\network\mcpe\protocol\types\recipe\IntIdMetaItemDescriptor;
 use sova\multiprotocol\packet\Direction;
+use sova\multiprotocol\translation\item\LegacyItemCodec;
 use sova\multiprotocol\translation\recipe\LegacyRecipeIngredient;
 use sova\multiprotocol\utils\Reflection;
 use function array_search;
@@ -29,9 +33,11 @@ final readonly class LegacyItemStackRequestReader
 	public function __construct(
 		private int $codecProtocolId,
 		private bool $legacyIngredients,
+		private bool $hasFilterStrings,
 		private bool $hasFilterStringCause,
 		private ?ContainerSlotTranslator $slots,
-		private array $innerTypes = []
+		private array $innerTypes = [],
+		private ?LegacyItemCodec $legacyItems = null
 	) {
 	}
 
@@ -49,7 +55,7 @@ final readonly class LegacyItemStackRequestReader
 		}
 
 		$filterStrings = [];
-		for ($i = 0, $count = VarInt::readUnsignedInt($in); $i < $count; ++$i) {
+		for ($i = 0, $count = $this->hasFilterStrings ? VarInt::readUnsignedInt($in) : 0; $i < $count; ++$i) {
 			$filterStrings[] = CommonTypes::getString($in);
 		}
 
@@ -71,15 +77,37 @@ final readonly class LegacyItemStackRequestReader
 			throw new PacketDecodeException('Unhandled item stack request action type ' . $innerTypeId);
 		}
 
-		$action = $this->legacyIngredients && $typeId === CraftRecipeAutoStackRequestAction::ID
-			? self::readLegacyCraftRecipeAuto($in)
-			: Reflection::invokeStatic(ItemStackRequest::class, 'readAction', $in, $this->codecProtocolId, $typeId);
+		$action = match (true) {
+			$this->legacyItems !== null && $typeId === DeprecatedCraftingResultsStackRequestAction::ID => self::readLegacyCraftingResults($in, $this->legacyItems),
+			$this->legacyIngredients && $typeId === CraftRecipeAutoStackRequestAction::ID => self::readLegacyCraftRecipeAuto($in),
+			default => Reflection::invokeStatic(ItemStackRequest::class, 'readAction', $in, $this->codecProtocolId, $typeId),
+		};
 
 		if (!$action instanceof ItemStackRequestAction) {
 			throw new PacketDecodeException('Unexpected item stack request action');
 		}
 
 		return $this->slots?->action(Direction::SERVERBOUND, $action) ?? $action;
+	}
+
+	/**
+	 * @throws DataDecodeException
+	 * @throws PacketDecodeException
+	 */
+	private static function readLegacyCraftingResults(ByteBufferReader $in, LegacyItemCodec $items): DeprecatedCraftingResultsStackRequestAction
+	{
+		$results = [];
+		for ($i = 0, $count = VarInt::readUnsignedInt($in); $i < $count; ++$i) {
+			$stack = $items->read($in);
+			$results[] = new DeprecatedCraftingResultsEntry(
+				new IntIdMetaItemDescriptor($stack->getId(), $stack->getMeta()),
+				$stack->getCount(),
+				$stack->getBlockRuntimeId(),
+				$stack->getRawExtraData()
+			);
+		}
+
+		return new DeprecatedCraftingResultsStackRequestAction($results, Byte::readUnsigned($in));
 	}
 
 	/**

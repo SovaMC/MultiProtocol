@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace sova\multiprotocol\translation\rewriter\item;
 
+use pmmp\encoding\ByteBufferWriter;
+use pmmp\encoding\VarInt;
 use pocketmine\network\mcpe\protocol\InventorySlotPacket;
 use pocketmine\network\mcpe\protocol\types\inventory\FullContainerName;
 use sova\multiprotocol\packet\Direction;
@@ -36,5 +38,12 @@ final class InventorySlotRewriter extends TypedPacketRewriter
 	{
 		$slot = $this->decode($packet);
 		$slot->item = $this->context->items->wrapper($packet->direction, $slot->item);
+		if ($this->context->legacyItems !== null) {
+			$out = new ByteBufferWriter();
+			VarInt::writeUnsignedInt($out, $slot->windowId);
+			VarInt::writeUnsignedInt($out, $slot->inventorySlot);
+			$this->context->legacyItems->writeWrapper($out, $slot->item);
+			$packet->replacePayload($out->getData());
+		}
 	}
 }

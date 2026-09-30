@@ -17,7 +17,7 @@ use sova\multiprotocol\packet\TypedPacketRewriter;
  */
 final class SetActorDataRewriter extends TypedPacketRewriter
 {
-	public function __construct(int $codecProtocolId)
+	public function __construct(int $codecProtocolId, private readonly bool $hasTick = true)
 	{
 		parent::__construct(SetActorDataPacket::class, $codecProtocolId, Direction::CLIENTBOUND);
 	}
@@ -29,7 +29,9 @@ final class SetActorDataRewriter extends TypedPacketRewriter
 		$out = new ByteBufferWriter();
 		CommonTypes::putActorRuntimeId($out, $data->actorRuntimeId);
 		CommonTypes::putEntityMetadata($out, $this->codecProtocolId, $data->metadata);
-		VarInt::writeUnsignedLong($out, $data->tick);
+		if ($this->hasTick) {
+			VarInt::writeUnsignedLong($out, $data->tick);
+		}
 
 		$packet->replacePayload($out->getData());
 	}

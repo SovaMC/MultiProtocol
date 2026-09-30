@@ -16,6 +16,7 @@ use sova\multiprotocol\packet\Direction;
 use sova\multiprotocol\packet\PacketWrapper;
 use sova\multiprotocol\packet\TypedPacketRewriter;
 use sova\multiprotocol\translation\item\ItemMapping;
+use sova\multiprotocol\translation\item\LegacyItemCodec;
 use sova\multiprotocol\translation\recipe\LegacyIngredientResolver;
 use sova\multiprotocol\translation\recipe\LegacyRecipeIngredient;
 use function count;
@@ -30,7 +31,8 @@ final class CraftingDataRewriter extends TypedPacketRewriter
 	public function __construct(
 		ItemMapping $items,
 		private readonly bool $materialReducers,
-		int $codecProtocolId
+		int $codecProtocolId,
+		private readonly ?LegacyItemCodec $legacyItems = null
 	) {
 		parent::__construct(CraftingDataPacket::class, $codecProtocolId, Direction::CLIENTBOUND);
 		$this->ingredients = new LegacyIngredientResolver($items, $codecProtocolId);
@@ -72,7 +74,12 @@ final class CraftingDataRewriter extends TypedPacketRewriter
 		}
 		foreach ($data->furnaceRecipes as $recipe) {
 			VarInt::writeSignedInt($out, $recipe->getTypeId());
-			$recipe->encode($out, $this->codecProtocolId);
+			VarInt::writeSignedInt($out, $recipe->getInputId());
+			if ($recipe->getTypeId() === CraftingDataPacket::ENTRY_FURNACE_DATA) {
+				VarInt::writeSignedInt($out, $recipe->getInputMeta() ?? 0);
+			}
+			$this->writeItem($out, $recipe->getResult());
+			CommonTypes::putString($out, $recipe->getBlockName());
 		}
 
 		VarInt::writeUnsignedInt($out, count($data->potionTypeRecipes));
@@ -132,6 +139,15 @@ final class CraftingDataRewriter extends TypedPacketRewriter
 	{
 		VarInt::writeUnsignedInt($out, count($outputs));
 		foreach ($outputs as $item) {
+			$this->writeItem($out, $item);
+		}
+	}
+
+	private function writeItem(ByteBufferWriter $out, ItemStack $item): void
+	{
+		if ($this->legacyItems !== null) {
+			$this->legacyItems->write($out, $item);
+		} else {
 			CommonTypes::putItemStackWithoutStackId($out, $this->codecProtocolId, $item);
 		}
 	}

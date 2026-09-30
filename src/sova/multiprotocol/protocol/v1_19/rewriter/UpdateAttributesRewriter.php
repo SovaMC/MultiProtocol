@@ -19,7 +19,7 @@ use function count;
  */
 final class UpdateAttributesRewriter extends TypedPacketRewriter
 {
-	public function __construct(int $codecProtocolId)
+	public function __construct(int $codecProtocolId, private readonly bool $hasTick = true)
 	{
 		parent::__construct(UpdateAttributesPacket::class, $codecProtocolId, Direction::CLIENTBOUND);
 	}
@@ -38,7 +38,9 @@ final class UpdateAttributesRewriter extends TypedPacketRewriter
 			LE::writeFloat($out, $entry->getDefault());
 			CommonTypes::putString($out, $entry->getId());
 		}
-		VarInt::writeUnsignedLong($out, $attributes->tick);
+		if ($this->hasTick) {
+			VarInt::writeUnsignedLong($out, $attributes->tick);
+		}
 
 		$packet->replacePayload($out->getData());
 	}

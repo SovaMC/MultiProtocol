@@ -33,6 +33,11 @@ final readonly class ProtocolResources
 		return Path::join($this->dataPath, (string) $this->actorIdentifiers, ProtocolData::ACTOR_IDENTIFIERS_FILE);
 	}
 
+	public function getStartGamePaletteFile(): string
+	{
+		return Path::join($this->dataPath, (string) $this->blockPalette, ProtocolData::START_GAME_PALETTE_FILE);
+	}
+
 	public function getMappingsKey(): string
 	{
 		return $this->blockPalette . ':' . $this->itemTable . ':' . $this->itemSchemaId;

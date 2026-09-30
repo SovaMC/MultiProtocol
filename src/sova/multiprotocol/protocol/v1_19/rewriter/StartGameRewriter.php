@@ -19,6 +19,9 @@ use pocketmine\utils\Binary;
 use sova\multiprotocol\packet\Direction;
 use sova\multiprotocol\packet\PacketWrapper;
 use sova\multiprotocol\packet\TypedPacketRewriter;
+use sova\multiprotocol\protocol\v1_16_100\Protocol1_16_100;
+use sova\multiprotocol\protocol\v1_16_210\Protocol1_16_210;
+use sova\multiprotocol\protocol\v1_17_0\Protocol1_17_0;
 use sova\multiprotocol\protocol\v1_17_30\Protocol1_17_30;
 use sova\multiprotocol\protocol\v1_18_0\Protocol1_18_0;
 use sova\multiprotocol\protocol\v1_18_30\Protocol1_18_30;
@@ -28,6 +31,7 @@ use sova\multiprotocol\protocol\v1_19_20\Protocol1_19_20;
 use sova\multiprotocol\protocol\v1_19_60\Protocol1_19_60;
 use sova\multiprotocol\protocol\v1_19_80\Protocol1_19_80;
 use sova\multiprotocol\translation\block\DimensionTracker;
+use sova\multiprotocol\translation\world\LegacyGameRules;
 use function count;
 
 /**
@@ -38,7 +42,8 @@ final class StartGameRewriter extends TypedPacketRewriter
 	public function __construct(
 		private readonly ItemTypeDictionary $clientItems,
 		private readonly int $clientProtocolId,
-		int $codecProtocolId
+		int $codecProtocolId,
+		private readonly ?string $legacyBlockPalette = null
 	) {
 		parent::__construct(StartGamePacket::class, $codecProtocolId, Direction::CLIENTBOUND);
 	}
@@ -76,14 +81,26 @@ final class StartGameRewriter extends TypedPacketRewriter
 		CommonTypes::putString($out, $startGame->worldName);
 		CommonTypes::putString($out, $startGame->premiumWorldTemplateId);
 		CommonTypes::putBool($out, $startGame->isTrial);
-		$startGame->playerMovementSettings->write($out, $this->codecProtocolId);
+		if ($this->isAtLeast(Protocol1_16_100::PROTOCOL)) {
+			VarInt::writeSignedInt($out, $startGame->playerMovementSettings->getMovementType()->value);
+			if ($this->isAtLeast(Protocol1_16_210::PROTOCOL)) {
+				VarInt::writeSignedInt($out, $startGame->playerMovementSettings->getRewindHistorySize());
+				CommonTypes::putBool($out, $startGame->playerMovementSettings->isServerAuthoritativeBlockBreaking());
+			}
+		} else {
+			CommonTypes::putBool($out, $startGame->playerMovementSettings->getMovementType()->value !== 0);
+		}
 		LE::writeUnsignedLong($out, $startGame->currentTick);
 		VarInt::writeSignedInt($out, $startGame->enchantmentSeed);
 
-		VarInt::writeUnsignedInt($out, count($startGame->blockPalette));
-		foreach ($startGame->blockPalette as $entry) {
-			CommonTypes::putString($out, $entry->getName());
-			$out->writeByteArray($entry->getStates()->getEncodedNbt());
+		if ($this->legacyBlockPalette !== null) {
+			$out->writeByteArray($this->legacyBlockPalette);
+		} else {
+			VarInt::writeUnsignedInt($out, count($startGame->blockPalette));
+			foreach ($startGame->blockPalette as $entry) {
+				CommonTypes::putString($out, $entry->getName());
+				$out->writeByteArray($entry->getStates()->getEncodedNbt());
+			}
 		}
 
 		$items = $this->clientItems->getEntries();
@@ -91,12 +108,16 @@ final class StartGameRewriter extends TypedPacketRewriter
 		foreach ($items as $entry) {
 			CommonTypes::putString($out, $entry->getStringId());
 			LE::writeSignedShort($out, $entry->getNumericId());
-			CommonTypes::putBool($out, $entry->isComponentBased());
+			if ($this->isAtLeast(Protocol1_16_100::PROTOCOL)) {
+				CommonTypes::putBool($out, $entry->isComponentBased());
+			}
 		}
 
 		CommonTypes::putString($out, $startGame->multiplayerCorrelationId);
 		CommonTypes::putBool($out, $startGame->enableNewInventorySystem);
-		CommonTypes::putString($out, $startGame->serverSoftwareVersion);
+		if ($this->isAtLeast(Protocol1_17_0::PROTOCOL)) {
+			CommonTypes::putString($out, $startGame->serverSoftwareVersion);
+		}
 		if ($this->isAtLeast(Protocol1_19_0::PROTOCOL)) {
 			$out->writeByteArray($startGame->playerActorProperties->getEncodedNbt());
 		}
@@ -147,8 +168,14 @@ final class StartGameRewriter extends TypedPacketRewriter
 		VarInt::writeSignedInt($out, $settings->platformBroadcastMode);
 		CommonTypes::putBool($out, $settings->commandsEnabled);
 		CommonTypes::putBool($out, $settings->isTexturePacksRequired);
-		CommonTypes::putGameRules($out, $this->codecProtocolId, $settings->gameRules, true);
-		$settings->experiments->write($out);
+		if ($this->isAtLeast(Protocol1_17_0::PROTOCOL)) {
+			CommonTypes::putGameRules($out, $this->codecProtocolId, $settings->gameRules, true);
+		} else {
+			LegacyGameRules::write($out, $settings->gameRules, $this->codecProtocolId, true);
+		}
+		if ($this->isAtLeast(Protocol1_16_100::PROTOCOL)) {
+			$settings->experiments->write($out);
+		}
 		CommonTypes::putBool($out, $settings->hasBonusChestEnabled);
 		CommonTypes::putBool($out, $settings->hasStartWithMapEnabled);
 		VarInt::writeSignedInt($out, $settings->defaultPlayerPermission);

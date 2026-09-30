@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace sova\multiprotocol\translation\rewriter\item;
 
+use pmmp\encoding\ByteBufferWriter;
 use pocketmine\network\mcpe\protocol\InventoryTransactionPacket;
 use sova\multiprotocol\packet\Direction;
 use sova\multiprotocol\packet\PacketWrapper;
@@ -23,6 +24,11 @@ final class InventoryTransactionRewriter extends TypedPacketRewriter
 
 	public function rewrite(PacketWrapper $packet): void
 	{
+		if ($this->context->legacyTransactions !== null) {
+			$out = new ByteBufferWriter();
+			$this->context->legacyTransactions->convertTransaction($packet->reader(), $out);
+			$packet->replacePayload($out->getData());
+		}
 		$this->context->transactions->translate($packet->direction, $this->decode($packet)->trData);
 	}
 }

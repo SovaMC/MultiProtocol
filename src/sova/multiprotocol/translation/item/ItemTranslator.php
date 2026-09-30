@@ -24,7 +24,8 @@ final readonly class ItemTranslator
 
 	public function __construct(
 		private ItemMapping $items,
-		private BlockMapping $blocks
+		private BlockMapping $blocks,
+		private ?BlockItemRuntimeIds $blockItems = null
 	) {
 		$this->clientFallback = self::resolveFallback($items->clientDictionary);
 		$this->serverFallback = self::resolveFallback($items->serverDictionary);
@@ -54,13 +55,15 @@ final readonly class ItemTranslator
 
 		$blockRuntimeId = $stack->getBlockRuntimeId();
 
-		return new ItemStack(
+		$translated = new ItemStack(
 			$mapped[0],
 			$mapped[1],
 			$stack->getCount(),
 			$blockRuntimeId !== 0 ? $this->blocks->map($direction, $blockRuntimeId) : 0,
 			$stack->getRawExtraData()
 		);
+
+		return $direction === Direction::SERVERBOUND && $this->blockItems !== null ? $this->blockItems->resolve($translated) : $translated;
 	}
 
 	public function wrapper(Direction $direction, ItemStackWrapper $wrapper): ItemStackWrapper
@@ -100,7 +103,12 @@ final readonly class ItemTranslator
 
 	public function withoutRenames(): self
 	{
-		return new self($this->items->withoutRenames(), $this->blocks);
+		return new self($this->items->withoutRenames(), $this->blocks, $this->blockItems);
+	}
+
+	public function withBlockItems(BlockItemRuntimeIds $blockItems): self
+	{
+		return new self($this->items, $this->blocks, $blockItems);
 	}
 
 	private static function resolveFallback(ItemTypeDictionary $dictionary): int

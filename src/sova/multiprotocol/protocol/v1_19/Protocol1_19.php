@@ -11,10 +11,15 @@ use pocketmine\network\mcpe\protocol\ProtocolInfo;
 use pocketmine\network\mcpe\protocol\SetActorDataPacket;
 use pocketmine\network\mcpe\protocol\types\AbilitiesLayer;
 use pocketmine\network\mcpe\protocol\types\entity\EntityIds;
+use pocketmine\utils\Filesystem;
 use sova\multiprotocol\packet\Direction;
 use sova\multiprotocol\packet\PacketRegistry;
 use sova\multiprotocol\protocol\Protocol;
 use sova\multiprotocol\protocol\ProtocolVersion;
+use sova\multiprotocol\protocol\v1_16_100\Protocol1_16_100;
+use sova\multiprotocol\protocol\v1_16_200\Protocol1_16_200;
+use sova\multiprotocol\protocol\v1_16_210\Protocol1_16_210;
+use sova\multiprotocol\protocol\v1_16_220\Protocol1_16_220;
 use sova\multiprotocol\protocol\v1_17_30\Protocol1_17_30;
 use sova\multiprotocol\protocol\v1_18_0\Protocol1_18_0;
 use sova\multiprotocol\protocol\v1_19\rewriter\ActorFlagsRewriter;
@@ -60,6 +65,9 @@ use sova\multiprotocol\translation\command\ArgumentTypeRemap;
 use sova\multiprotocol\translation\entity\EntityFlagsTranslator;
 use sova\multiprotocol\translation\inventory\ContainerSlotTranslator;
 use sova\multiprotocol\translation\inventory\LegacyItemStackRequestReader;
+use sova\multiprotocol\translation\inventory\LegacyTransactionReader;
+use sova\multiprotocol\translation\item\BlockItemRuntimeIds;
+use sova\multiprotocol\translation\item\LegacyItemCodec;
 use sova\multiprotocol\translation\ProtocolData;
 use sova\multiprotocol\translation\ProtocolMappings;
 use sova\multiprotocol\translation\rewriter\ability\AddPlayerAbilitiesRewriter;
@@ -90,6 +98,7 @@ abstract class Protocol1_19 extends Protocol
 		190 => 188,
 		191 => 6,
 	];
+
 	private const int PERMISSION_ARGUMENT_TYPES = 32;
 	private const int PERMISSION_ARGUMENT_TYPE_COUNT = 5;
 	private const int STRING_ARGUMENT_TYPE = 39;
@@ -165,7 +174,7 @@ abstract class Protocol1_19 extends Protocol
 
 	public function __construct(
 		ProtocolVersion $version,
-		private readonly ProtocolResources $resources
+		protected readonly ProtocolResources $resources
 	) {
 		parent::__construct($version, self::CODEC_PROTOCOL);
 	}
@@ -186,20 +195,30 @@ abstract class Protocol1_19 extends Protocol
 
 	protected function registerPackets(PacketRegistry $packets): void
 	{
+		$legacyItems = $this->isBefore(Protocol1_16_220::PROTOCOL) ? new LegacyItemCodec($this->getClientData()->items->fromStringId('minecraft:shield')) : null;
+		$legacyTransactions = $legacyItems !== null ? new LegacyTransactionReader($legacyItems, self::CODEC_PROTOCOL, !$this->isBefore(Protocol1_16_210::PROTOCOL)) : null;
 		$context = new TranslationContext(
 			$this->mappings(),
 			self::CODEC_PROTOCOL,
 			$this->isBefore(Protocol1_19_80::PROTOCOL) ? new LegacySignTranslator() : null,
 			new BiomeTranslator($this->biomeReplacements()),
-			$this->isBefore(Protocol1_18_0::PROTOCOL)
+			$this->isBefore(Protocol1_18_0::PROTOCOL),
+			$legacyItems !== null ? BlockItemRuntimeIds::native(self::CODEC_PROTOCOL) : null,
+			$legacyItems,
+			$legacyTransactions
 		);
 		$identifiers = ActorIdentifiers::load($this->resources->getActorIdentifiersFile(), $this->actorOverrides());
 
-		$this->registerServerbound($packets);
+		$this->registerServerbound($packets, $context);
 
 		$packets
 			->add(
-				new StartGameRewriter($context->mappings->items->clientDictionary, $this->version->id, self::CODEC_PROTOCOL),
+				new StartGameRewriter(
+					$context->mappings->items->clientDictionary,
+					$this->version->id,
+					self::CODEC_PROTOCOL,
+					$this->isBefore(Protocol1_16_100::PROTOCOL) ? Filesystem::fileGetContents($this->resources->getStartGamePaletteFile()) : null
+				),
 				new EmoteRewriter(),
 				new SmithingRecipesRewriter(!$this->isBefore(Protocol1_19_80::PROTOCOL), self::CODEC_PROTOCOL)
 			)
@@ -268,19 +287,28 @@ abstract class Protocol1_19 extends Protocol
 		return $this->version->id < $protocolId;
 	}
 
-	private function registerServerbound(PacketRegistry $packets): void
+	private function registerServerbound(PacketRegistry $packets, TranslationContext $context): void
 	{
 		$slots = $this->isBefore(Protocol1_19_50::PROTOCOL) ? new ContainerSlotTranslator(self::RECIPE_BOOK_CONTAINER) : null;
 		$requests = $this->isBefore(Protocol1_19_50::PROTOCOL) ? new LegacyItemStackRequestReader(
 			self::CODEC_PROTOCOL,
 			$this->isBefore(Protocol1_19_30::PROTOCOL),
+			!$this->isBefore(Protocol1_16_200::PROTOCOL),
 			!$this->isBefore(Protocol1_19_40::PROTOCOL),
 			$slots,
-			$this->legacyActionTypes()
+			$this->legacyActionTypes(),
+			$context->legacyItems
 		) : null;
 
 		if ($this->isBefore(Protocol1_19_70::PROTOCOL)) {
-			$packets->add(new PlayerAuthInputRewriter(self::CODEC_PROTOCOL, $requests, !$this->isBefore(Protocol1_19_0::PROTOCOL)));
+			$packets->add(new PlayerAuthInputRewriter(
+				self::CODEC_PROTOCOL,
+				$requests,
+				!$this->isBefore(Protocol1_19_0::PROTOCOL),
+				!$this->isBefore(Protocol1_16_100::PROTOCOL),
+				!$this->isBefore(Protocol1_16_210::PROTOCOL),
+				$context->legacyTransactions
+			));
 		}
 		if ($this->isBefore(Protocol1_19_80::PROTOCOL)) {
 			$packets
@@ -326,7 +354,7 @@ abstract class Protocol1_19 extends Protocol
 		}
 
 		if ($this->isBefore(Protocol1_19_63::PROTOCOL)) {
-			$skins = new SkinFormat(self::CODEC_PROTOCOL, $this->isBefore(Protocol1_17_30::PROTOCOL) ? SkinLayout::LEGACY : SkinLayout::NO_OVERRIDE);
+			$skins = new SkinFormat(self::CODEC_PROTOCOL, $this->skinLayout());
 			$packets->add(
 				new PlayerListRewriter($skins, self::CODEC_PROTOCOL),
 				new PlayerSkinRewriter($skins, self::CODEC_PROTOCOL)
@@ -340,21 +368,21 @@ abstract class Protocol1_19 extends Protocol
 				new ActorFlagsRewriter(AddPlayerPacket::class, $flags, self::CODEC_PROTOCOL),
 				new ActorFlagsRewriter(AddItemActorPacket::class, $flags, self::CODEC_PROTOCOL),
 				new ActorFlagsRewriter(SetActorDataPacket::class, $flags, self::CODEC_PROTOCOL),
-				new ItemStackResponseRewriter(new ContainerSlotTranslator(self::RECIPE_BOOK_CONTAINER), self::CODEC_PROTOCOL)
+				new ItemStackResponseRewriter(new ContainerSlotTranslator(self::RECIPE_BOOK_CONTAINER), $this->version->id, self::CODEC_PROTOCOL)
 			);
 		}
 
 		if ($this->isBefore(Protocol1_19_40::PROTOCOL)) {
 			$packets->add(
 				new AddActorRewriter($this->version->id, self::CODEC_PROTOCOL),
-				new SetActorDataRewriter(self::CODEC_PROTOCOL),
-				new AddPlayerRewriter($this->version->id, self::CODEC_PROTOCOL)
+				new SetActorDataRewriter(self::CODEC_PROTOCOL, !$this->isBefore(Protocol1_16_100::PROTOCOL)),
+				new AddPlayerRewriter($this->version->id, self::CODEC_PROTOCOL, $context->legacyItems)
 			);
 		}
 
 		if ($this->isBefore(Protocol1_19_30::PROTOCOL)) {
 			$packets->add(
-				new CraftingDataRewriter($context->mappings->items->withoutRenames(), !$this->isBefore(Protocol1_17_30::PROTOCOL), self::CODEC_PROTOCOL),
+				new CraftingDataRewriter($context->mappings->items->withoutRenames(), !$this->isBefore(Protocol1_17_30::PROTOCOL), self::CODEC_PROTOCOL, $context->legacyItems),
 				new TextRewriter()
 			);
 		}
@@ -362,7 +390,7 @@ abstract class Protocol1_19 extends Protocol
 		if ($this->isBefore(Protocol1_19_20::PROTOCOL)) {
 			$packets->add(
 				new NetworkChunkPublisherUpdateRewriter(),
-				new UpdateAttributesRewriter(self::CODEC_PROTOCOL),
+				new UpdateAttributesRewriter(self::CODEC_PROTOCOL, !$this->isBefore(Protocol1_16_100::PROTOCOL)),
 				new ClientboundMapItemDataRewriter()
 			);
 		}
@@ -370,6 +398,18 @@ abstract class Protocol1_19 extends Protocol
 		if ($this->isBefore(Protocol1_19_10::PROTOCOL)) {
 			$packets->add(...AdventureSettingsRewriter::create(self::CODEC_PROTOCOL));
 		}
+	}
+
+	protected function skinLayout(): SkinLayout
+	{
+		if ($this->isBefore(Protocol1_16_100::PROTOCOL)) {
+			return SkinLayout::LEGACY_NO_PLAYFAB_NO_EXPRESSION;
+		}
+		if ($this->isBefore(Protocol1_16_210::PROTOCOL)) {
+			return SkinLayout::LEGACY_NO_PLAYFAB;
+		}
+
+		return $this->isBefore(Protocol1_17_30::PROTOCOL) ? SkinLayout::LEGACY : SkinLayout::NO_OVERRIDE;
 	}
 
 	private function cancelMissingPackets(PacketRegistry $packets): void
