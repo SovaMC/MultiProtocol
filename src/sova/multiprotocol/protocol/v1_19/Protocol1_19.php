@@ -15,6 +15,8 @@ use sova\multiprotocol\packet\Direction;
 use sova\multiprotocol\packet\PacketRegistry;
 use sova\multiprotocol\protocol\Protocol;
 use sova\multiprotocol\protocol\ProtocolVersion;
+use sova\multiprotocol\protocol\v1_17_30\Protocol1_17_30;
+use sova\multiprotocol\protocol\v1_18_0\Protocol1_18_0;
 use sova\multiprotocol\protocol\v1_19\rewriter\ActorFlagsRewriter;
 use sova\multiprotocol\protocol\v1_19\rewriter\AddActorRewriter;
 use sova\multiprotocol\protocol\v1_19\rewriter\AddPlayerRewriter;
@@ -52,6 +54,7 @@ use sova\multiprotocol\protocol\v1_19_70\Protocol1_19_70;
 use sova\multiprotocol\protocol\v1_19_80\Protocol1_19_80;
 use sova\multiprotocol\translation\ability\AbilitiesFilter;
 use sova\multiprotocol\translation\actor\ActorIdentifiers;
+use sova\multiprotocol\translation\block\BiomeTranslator;
 use sova\multiprotocol\translation\block\LegacySignTranslator;
 use sova\multiprotocol\translation\command\ArgumentTypeRemap;
 use sova\multiprotocol\translation\entity\EntityFlagsTranslator;
@@ -63,6 +66,7 @@ use sova\multiprotocol\translation\rewriter\ability\AddPlayerAbilitiesRewriter;
 use sova\multiprotocol\translation\rewriter\ability\UpdateAbilitiesRewriter;
 use sova\multiprotocol\translation\rewriter\StandardRewriters;
 use sova\multiprotocol\translation\skin\SkinFormat;
+use sova\multiprotocol\translation\skin\SkinLayout;
 use sova\multiprotocol\translation\TranslationContext;
 
 abstract class Protocol1_19 extends Protocol
@@ -73,6 +77,19 @@ abstract class Protocol1_19 extends Protocol
 	private const int ADVENTURE_SETTINGS_PACKET = 0x37;
 	private const int RECIPE_BOOK_CONTAINER = 21;
 	private const int CAN_DASH_FLAG = 46;
+
+	private const array BIOME_REPLACEMENTS = [
+		193 => 29,
+	];
+
+	private const array CHERRY_GROVE_REPLACEMENT = [
+		192 => 186,
+	];
+
+	private const array WILD_UPDATE_BIOME_REPLACEMENTS = [
+		190 => 188,
+		191 => 6,
+	];
 	private const int PERMISSION_ARGUMENT_TYPES = 32;
 	private const int PERMISSION_ARGUMENT_TYPE_COUNT = 5;
 	private const int STRING_ARGUMENT_TYPE = 39;
@@ -169,7 +186,13 @@ abstract class Protocol1_19 extends Protocol
 
 	protected function registerPackets(PacketRegistry $packets): void
 	{
-		$context = new TranslationContext($this->mappings(), self::CODEC_PROTOCOL, $this->isBefore(Protocol1_19_80::PROTOCOL) ? new LegacySignTranslator() : null);
+		$context = new TranslationContext(
+			$this->mappings(),
+			self::CODEC_PROTOCOL,
+			$this->isBefore(Protocol1_19_80::PROTOCOL) ? new LegacySignTranslator() : null,
+			new BiomeTranslator($this->biomeReplacements()),
+			$this->isBefore(Protocol1_18_0::PROTOCOL)
+		);
 		$identifiers = ActorIdentifiers::load($this->resources->getActorIdentifiersFile(), $this->actorOverrides());
 
 		$this->registerServerbound($packets);
@@ -214,6 +237,22 @@ abstract class Protocol1_19 extends Protocol
 		}
 
 		return [new ArgumentTypeRemap(self::PERMISSION_ARGUMENT_TYPES, self::PERMISSION_ARGUMENT_TYPE_COUNT, self::STRING_ARGUMENT_TYPE)];
+	}
+
+	/**
+	 * @return array<int, int>
+	 */
+	protected function biomeReplacements(): array
+	{
+		$replacements = self::BIOME_REPLACEMENTS;
+		if ($this->isBefore(Protocol1_19_80::PROTOCOL)) {
+			$replacements += self::CHERRY_GROVE_REPLACEMENT;
+		}
+		if ($this->isBefore(Protocol1_19_0::PROTOCOL)) {
+			$replacements += self::WILD_UPDATE_BIOME_REPLACEMENTS;
+		}
+
+		return $replacements;
 	}
 
 	/**
@@ -287,7 +326,7 @@ abstract class Protocol1_19 extends Protocol
 		}
 
 		if ($this->isBefore(Protocol1_19_63::PROTOCOL)) {
-			$skins = new SkinFormat(self::CODEC_PROTOCOL);
+			$skins = new SkinFormat(self::CODEC_PROTOCOL, $this->isBefore(Protocol1_17_30::PROTOCOL) ? SkinLayout::LEGACY : SkinLayout::NO_OVERRIDE);
 			$packets->add(
 				new PlayerListRewriter($skins, self::CODEC_PROTOCOL),
 				new PlayerSkinRewriter($skins, self::CODEC_PROTOCOL)
@@ -315,7 +354,7 @@ abstract class Protocol1_19 extends Protocol
 
 		if ($this->isBefore(Protocol1_19_30::PROTOCOL)) {
 			$packets->add(
-				new CraftingDataRewriter($context->mappings->items->withoutRenames(), self::CODEC_PROTOCOL),
+				new CraftingDataRewriter($context->mappings->items->withoutRenames(), !$this->isBefore(Protocol1_17_30::PROTOCOL), self::CODEC_PROTOCOL),
 				new TextRewriter()
 			);
 		}

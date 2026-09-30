@@ -27,8 +27,11 @@ final class CraftingDataRewriter extends TypedPacketRewriter
 {
 	private readonly LegacyIngredientResolver $ingredients;
 
-	public function __construct(ItemMapping $items, int $codecProtocolId)
-	{
+	public function __construct(
+		ItemMapping $items,
+		private readonly bool $materialReducers,
+		int $codecProtocolId
+	) {
 		parent::__construct(CraftingDataPacket::class, $codecProtocolId, Direction::CLIENTBOUND);
 		$this->ingredients = new LegacyIngredientResolver($items, $codecProtocolId);
 	}
@@ -80,9 +83,11 @@ final class CraftingDataRewriter extends TypedPacketRewriter
 		foreach ($data->potionContainerRecipes as $recipe) {
 			$recipe->encode($out);
 		}
-		VarInt::writeUnsignedInt($out, count($data->materialReducerRecipes));
-		foreach ($data->materialReducerRecipes as $recipe) {
-			$recipe->encode($out);
+		if ($this->materialReducers) {
+			VarInt::writeUnsignedInt($out, count($data->materialReducerRecipes));
+			foreach ($data->materialReducerRecipes as $recipe) {
+				$recipe->encode($out);
+			}
 		}
 		CommonTypes::putBool($out, $data->cleanRecipes);
 

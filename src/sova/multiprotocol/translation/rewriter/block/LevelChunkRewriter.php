@@ -30,17 +30,15 @@ final class LevelChunkRewriter extends TypedPacketRewriter
 		}
 
 		$chunk = $this->decode($packet);
-		Reflection::set(
-			LevelChunkPacket::class,
-			$chunk,
-			'extraPayload',
-			$this->context->chunks->translate(
-				$packet->direction,
-				$chunk->getExtraPayload(),
-				$chunk->getSubChunkCount(),
-				$this->context->blockActors,
-				$packet->session->get(DimensionTracker::class)->getDimension()
-			)
+		$translated = $this->context->chunks->translate(
+			$packet->direction,
+			$chunk->getExtraPayload(),
+			$chunk->getSubChunkCount(),
+			$this->context->blockActors,
+			$packet->session->get(DimensionTracker::class)->getDimension()
 		);
+
+		Reflection::set(LevelChunkPacket::class, $chunk, 'extraPayload', $translated->payload);
+		Reflection::set(LevelChunkPacket::class, $chunk, 'subChunkCount', $translated->subChunkCount);
 	}
 }

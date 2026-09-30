@@ -19,6 +19,8 @@ use pocketmine\utils\Binary;
 use sova\multiprotocol\packet\Direction;
 use sova\multiprotocol\packet\PacketWrapper;
 use sova\multiprotocol\packet\TypedPacketRewriter;
+use sova\multiprotocol\protocol\v1_17_30\Protocol1_17_30;
+use sova\multiprotocol\protocol\v1_18_0\Protocol1_18_0;
 use sova\multiprotocol\protocol\v1_18_30\Protocol1_18_30;
 use sova\multiprotocol\protocol\v1_19_0\Protocol1_19_0;
 use sova\multiprotocol\protocol\v1_19_10\Protocol1_19_10;
@@ -98,7 +100,9 @@ final class StartGameRewriter extends TypedPacketRewriter
 		if ($this->isAtLeast(Protocol1_19_0::PROTOCOL)) {
 			$out->writeByteArray($startGame->playerActorProperties->getEncodedNbt());
 		}
-		LE::writeUnsignedLong($out, $startGame->blockPaletteChecksum);
+		if ($this->isAtLeast(Protocol1_18_0::PROTOCOL)) {
+			LE::writeUnsignedLong($out, $startGame->blockPaletteChecksum);
+		}
 		if ($this->isAtLeast(Protocol1_19_0::PROTOCOL)) {
 			CommonTypes::putUUID($out, $startGame->worldTemplateId);
 		}
@@ -167,7 +171,9 @@ final class StartGameRewriter extends TypedPacketRewriter
 		LE::writeSignedInt($out, $settings->limitedWorldWidth);
 		LE::writeSignedInt($out, $settings->limitedWorldLength);
 		CommonTypes::putBool($out, $settings->isNewNether);
-		($settings->eduSharedUriResource ?? new EducationUriResource('', ''))->write($out);
+		if ($this->isAtLeast(Protocol1_17_30::PROTOCOL)) {
+			($settings->eduSharedUriResource ?? new EducationUriResource('', ''))->write($out);
+		}
 		CommonTypes::writeOptional($out, $settings->experimentalGameplayOverride, CommonTypes::putBool(...));
 		if ($this->isAtLeast(Protocol1_19_20::PROTOCOL)) {
 			Byte::writeUnsigned($out, $settings->chatRestrictionLevel);

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace sova\multiprotocol\translation;
 
+use sova\multiprotocol\translation\block\BiomeTranslator;
 use sova\multiprotocol\translation\block\BlockActorTranslator;
 use sova\multiprotocol\translation\block\BlockMapping;
 use sova\multiprotocol\translation\block\ChunkTranslator;
@@ -25,11 +26,13 @@ final readonly class TranslationContext
 	public function __construct(
 		public ProtocolMappings $mappings,
 		public int $codecProtocolId,
-		public ?BlockActorTranslator $blockActors = null
+		public ?BlockActorTranslator $blockActors = null,
+		BiomeTranslator $biomes = new BiomeTranslator([]),
+		bool $legacyChunkHeight = false
 	) {
 		$this->blocks = $mappings->blocks;
 		$this->items = $mappings->itemTranslator;
-		$this->chunks = new ChunkTranslator($this->blocks);
+		$this->chunks = new ChunkTranslator($this->blocks, $biomes, $legacyChunkHeight);
 		$this->variants = new VariantTranslator($this->blocks);
 		$this->transactions = new TransactionTranslator($this->items, $this->blocks);
 		$this->exactItems = $this->items->withoutRenames();

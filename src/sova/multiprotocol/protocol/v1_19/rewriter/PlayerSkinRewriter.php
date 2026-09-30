@@ -10,7 +10,6 @@ use pocketmine\network\mcpe\protocol\serializer\CommonTypes;
 use sova\multiprotocol\packet\Direction;
 use sova\multiprotocol\packet\PacketWrapper;
 use sova\multiprotocol\packet\TypedPacketRewriter;
-use sova\multiprotocol\translation\skin\LegacySkinReader;
 use sova\multiprotocol\translation\skin\SkinFormat;
 
 /**
@@ -27,14 +26,13 @@ final class PlayerSkinRewriter extends TypedPacketRewriter
 
 	public function rewrite(PacketWrapper $packet): void
 	{
-		if ($this->skins->hasOverrideFlag($packet->session)) {
+		if ($this->skins->isNative($packet->session)) {
 			return;
 		}
 
 		if ($packet->direction === Direction::SERVERBOUND) {
 			$packet->passthrough(CommonTypes::getUUID(...));
-			$packet->passthrough(LegacySkinReader::skip(...));
-			CommonTypes::putBool($packet->writer(), true);
+			$this->skins->toServer($packet->reader(), $packet->writer(), $packet->session);
 			return;
 		}
 
@@ -42,7 +40,7 @@ final class PlayerSkinRewriter extends TypedPacketRewriter
 
 		$out = new ByteBufferWriter();
 		CommonTypes::putUUID($out, $skin->uuid);
-		$this->skins->write($out, $skin->skin);
+		$this->skins->write($out, $skin->skin, $packet->session);
 		CommonTypes::putString($out, $skin->newSkinName);
 		CommonTypes::putString($out, $skin->oldSkinName);
 		CommonTypes::putBool($out, $skin->skin->isVerified());
