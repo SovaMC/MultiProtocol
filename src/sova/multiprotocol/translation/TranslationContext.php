@@ -20,6 +20,7 @@ final readonly class TranslationContext
 	public VariantTranslator $variants;
 	public TransactionTranslator $transactions;
 	public RecipeTranslator $recipes;
+	public ItemTranslator $exactItems;
 
 	public function __construct(
 		public ProtocolMappings $mappings,
@@ -31,6 +32,7 @@ final readonly class TranslationContext
 		$this->chunks = new ChunkTranslator($this->blocks);
 		$this->variants = new VariantTranslator($this->blocks);
 		$this->transactions = new TransactionTranslator($this->items, $this->blocks);
-		$this->recipes = new RecipeTranslator($this->items);
+		$this->exactItems = $this->items->withoutRenames();
+		$this->recipes = new RecipeTranslator($this->exactItems);
 	}
 }

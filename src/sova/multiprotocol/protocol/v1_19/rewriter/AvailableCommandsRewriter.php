@@ -11,7 +11,9 @@ use pocketmine\network\mcpe\protocol\types\command\raw\CommandRawData;
 use sova\multiprotocol\packet\Direction;
 use sova\multiprotocol\packet\PacketWrapper;
 use sova\multiprotocol\packet\TypedPacketRewriter;
+use sova\multiprotocol\translation\command\ArgumentTypeRemap;
 use function array_map;
+use function array_values;
 
 /**
  * @extends TypedPacketRewriter<AvailableCommandsPacket>
@@ -21,22 +23,22 @@ final class AvailableCommandsRewriter extends TypedPacketRewriter
 	private const int TYPE_MASK = 0xffff;
 	private const int SPECIAL_FLAGS = AvailableCommandsPacket::ARG_FLAG_ENUM | AvailableCommandsPacket::ARG_FLAG_POSTFIX | AvailableCommandsPacket::ARG_FLAG_SOFT_ENUM;
 
-	private const int PERMISSION_TYPES_START = 32;
-	private const int PERMISSION_TYPES_COUNT = 5;
-	private const int STRING_TYPE = 39;
+	/** @var list<ArgumentTypeRemap> */
+	private readonly array $remaps;
 
-	public function __construct(int $codecProtocolId)
+	public function __construct(int $codecProtocolId, ArgumentTypeRemap ...$remaps)
 	{
 		parent::__construct(AvailableCommandsPacket::class, $codecProtocolId, Direction::CLIENTBOUND);
+		$this->remaps = array_values($remaps);
 	}
 
 	public function rewrite(PacketWrapper $packet): void
 	{
 		$commands = $this->decode($packet);
-		$commands->commandData = array_map(self::translateCommand(...), $commands->commandData);
+		$commands->commandData = array_map($this->translateCommand(...), $commands->commandData);
 	}
 
-	private static function translateCommand(CommandRawData $command): CommandRawData
+	private function translateCommand(CommandRawData $command): CommandRawData
 	{
 		return new CommandRawData(
 			$command->getName(),
@@ -46,38 +48,36 @@ final class AvailableCommandsRewriter extends TypedPacketRewriter
 			$command->getAliasEnumIndex(),
 			$command->getChainedSubCommandDataIndexes(),
 			array_map(
-				static fn(CommandOverloadRawData $overload) => new CommandOverloadRawData(
+				fn(CommandOverloadRawData $overload) => new CommandOverloadRawData(
 					$overload->isChaining(),
-					array_map(self::translateParameter(...), $overload->getParameters())
+					array_map($this->translateParameter(...), $overload->getParameters())
 				),
 				$command->getOverloads()
 			)
 		);
 	}
 
-	private static function translateParameter(CommandParameterRawData $parameter): CommandParameterRawData
+	private function translateParameter(CommandParameterRawData $parameter): CommandParameterRawData
 	{
 		return new CommandParameterRawData(
 			$parameter->getName(),
-			self::translateType($parameter->getTypeInfo()),
+			$this->translateType($parameter->getTypeInfo()),
 			$parameter->isOptional(),
 			$parameter->getFlags()
 		);
 	}
 
-	private static function translateType(int $typeInfo): int
+	private function translateType(int $typeInfo): int
 	{
 		if (($typeInfo & AvailableCommandsPacket::ARG_FLAG_VALID) === 0 || ($typeInfo & self::SPECIAL_FLAGS) !== 0) {
 			return $typeInfo;
 		}
 
 		$type = $typeInfo & self::TYPE_MASK;
-		$translated = match (true) {
-			$type >= self::PERMISSION_TYPES_START + self::PERMISSION_TYPES_COUNT => $type - self::PERMISSION_TYPES_COUNT,
-			$type >= self::PERMISSION_TYPES_START => self::STRING_TYPE,
-			default => $type,
-		};
+		foreach ($this->remaps as $remap) {
+			$type = $remap->translate($type);
+		}
 
-		return ($typeInfo & ~self::TYPE_MASK) | $translated;
+		return ($typeInfo & ~self::TYPE_MASK) | $type;
 	}
 }

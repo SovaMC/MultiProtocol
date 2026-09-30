@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace sova\multiprotocol\protocol;
 
+use sova\multiprotocol\protocol\v1_18_0\Protocol1_18_0;
+use sova\multiprotocol\protocol\v1_18_10\Protocol1_18_10;
+use sova\multiprotocol\protocol\v1_18_30\Protocol1_18_30;
 use sova\multiprotocol\protocol\v1_19_0\Protocol1_19_0;
 use sova\multiprotocol\protocol\v1_19_10\Protocol1_19_10;
 use sova\multiprotocol\protocol\v1_19_20\Protocol1_19_20;
@@ -41,6 +44,9 @@ final class Protocols
 			new Protocol1_19_20($dataPath),
 			new Protocol1_19_10($dataPath),
 			new Protocol1_19_0($dataPath),
+			new Protocol1_18_30($dataPath),
+			new Protocol1_18_10($dataPath),
+			new Protocol1_18_0($dataPath),
 		];
 	}
 }

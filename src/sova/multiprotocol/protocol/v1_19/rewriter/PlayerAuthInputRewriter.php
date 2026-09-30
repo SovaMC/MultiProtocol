@@ -9,6 +9,7 @@ use pmmp\encoding\LE;
 use pmmp\encoding\VarInt;
 use pocketmine\network\mcpe\protocol\ProtocolInfo;
 use pocketmine\network\mcpe\protocol\serializer\BitSet;
+use pocketmine\network\mcpe\protocol\types\InteractionMode;
 use pocketmine\network\mcpe\protocol\types\inventory\stackrequest\ItemStackRequest;
 use pocketmine\network\mcpe\protocol\types\ItemInteractionData;
 use pocketmine\network\mcpe\protocol\types\PlayerAuthInputFlags;
@@ -27,7 +28,8 @@ final class PlayerAuthInputRewriter extends AbstractPacketRewriter
 
 	public function __construct(
 		private readonly int $codecProtocolId,
-		private readonly ?LegacyItemStackRequestReader $requests
+		private readonly ?LegacyItemStackRequestReader $requests,
+		private readonly bool $hasInteractionMode
 	) {
 		parent::__construct(ProtocolInfo::PLAYER_AUTH_INPUT_PACKET, Direction::SERVERBOUND);
 	}
@@ -38,7 +40,11 @@ final class PlayerAuthInputRewriter extends AbstractPacketRewriter
 		$flags = $packet->passthrough(static fn(ByteBufferReader $in) => BitSet::read($in, self::INPUT_FLAGS_LENGTH));
 		$packet->passthrough(VarInt::readUnsignedInt(...));
 		$playMode = $packet->passthrough(VarInt::readUnsignedInt(...));
-		$packet->passthrough(VarInt::readUnsignedInt(...));
+		if ($this->hasInteractionMode) {
+			$packet->passthrough(VarInt::readUnsignedInt(...));
+		} else {
+			VarInt::writeUnsignedInt($packet->writer(), InteractionMode::TOUCH);
+		}
 		if ($playMode === PlayMode::VR) {
 			$packet->passthroughBytes(self::VECTOR3_LENGTH);
 		}

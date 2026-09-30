@@ -11,6 +11,7 @@ use pocketmine\network\mcpe\protocol\types\recipe\RecipeIngredient;
 use pocketmine\network\mcpe\protocol\types\recipe\StringIdMetaItemDescriptor;
 use pocketmine\network\mcpe\protocol\types\recipe\TagItemDescriptor;
 use sova\multiprotocol\translation\item\ItemMapping;
+use function usort;
 
 final class LegacyIngredientResolver
 {
@@ -50,7 +51,10 @@ final class LegacyIngredientResolver
 
 	private function tag(string $tag): ?IntIdMetaItemDescriptor
 	{
-		foreach (ItemTagToIdMap::getInstance($this->serverProtocolId)->getIdsForTag($tag) as $stringId) {
+		$ids = ItemTagToIdMap::getInstance($this->serverProtocolId)->getIdsForTag($tag);
+		usort($ids, static fn(string $a, string $b): int => ($b === $tag) <=> ($a === $tag));
+
+		foreach ($ids as $stringId) {
 			try {
 				$serverId = $this->items->serverDictionary->fromStringId($stringId);
 			} catch (InvalidArgumentException) {

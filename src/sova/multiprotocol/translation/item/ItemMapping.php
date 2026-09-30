@@ -21,10 +21,14 @@ final class ItemMapping
 	private array $toServerCache = [];
 
 	/** @var array<string, string> */
-	private readonly array $serverRenames;
+	private readonly array $clientConversions;
+
+	/** @var array<string, string> */
+	private readonly array $serverConversions;
 
 	/**
 	 * @param array<string, string> $clientRenames
+	 * @param array<string, string> $clientAliases
 	 */
 	public function __construct(
 		public readonly ItemTypeDictionary $serverDictionary,
@@ -32,9 +36,11 @@ final class ItemMapping
 		private readonly ItemIdMetaUpgrader $upgrader,
 		private readonly ItemIdMetaDowngrader $clientDowngrader,
 		private readonly ItemIdMetaDowngrader $serverDowngrader,
-		private readonly array $clientRenames = []
+		array $clientRenames = [],
+		private readonly array $clientAliases = []
 	) {
-		$this->serverRenames = array_flip($clientRenames);
+		$this->clientConversions = $clientAliases + $clientRenames;
+		$this->serverConversions = array_flip($this->clientConversions);
 	}
 
 	/**
@@ -48,7 +54,7 @@ final class ItemMapping
 
 		$key = $id . ':' . $meta;
 		if (!array_key_exists($key, $this->toClientCache)) {
-			$this->toClientCache[$key] = $this->convert($this->serverDictionary, $this->clientDictionary, $this->clientDowngrader, $this->clientRenames, $id, $meta);
+			$this->toClientCache[$key] = $this->convert($this->serverDictionary, $this->clientDictionary, $this->clientDowngrader, $this->clientConversions, $id, $meta);
 		}
 
 		return $this->toClientCache[$key];
@@ -65,7 +71,7 @@ final class ItemMapping
 
 		$key = $id . ':' . $meta;
 		if (!array_key_exists($key, $this->toServerCache)) {
-			$this->toServerCache[$key] = $this->convert($this->clientDictionary, $this->serverDictionary, $this->serverDowngrader, $this->serverRenames, $id, $meta);
+			$this->toServerCache[$key] = $this->convert($this->clientDictionary, $this->serverDictionary, $this->serverDowngrader, $this->serverConversions, $id, $meta);
 		}
 
 		return $this->toServerCache[$key];
@@ -77,6 +83,11 @@ final class ItemMapping
 	public function map(Direction $direction, int $id, int $meta): ?array
 	{
 		return $direction === Direction::CLIENTBOUND ? $this->toClient($id, $meta) : $this->toServer($id, $meta);
+	}
+
+	public function withoutRenames(): self
+	{
+		return new self($this->serverDictionary, $this->clientDictionary, $this->upgrader, $this->clientDowngrader, $this->serverDowngrader, [], $this->clientAliases);
 	}
 
 	public function hasClientItem(string $stringId): bool

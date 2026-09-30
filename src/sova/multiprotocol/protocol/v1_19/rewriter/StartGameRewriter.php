@@ -15,9 +15,12 @@ use pocketmine\network\mcpe\protocol\types\EditorWorldType;
 use pocketmine\network\mcpe\protocol\types\EducationUriResource;
 use pocketmine\network\mcpe\protocol\types\LevelSettings;
 use pocketmine\network\mcpe\protocol\types\ServerTelemetryData;
+use pocketmine\utils\Binary;
 use sova\multiprotocol\packet\Direction;
 use sova\multiprotocol\packet\PacketWrapper;
 use sova\multiprotocol\packet\TypedPacketRewriter;
+use sova\multiprotocol\protocol\v1_18_30\Protocol1_18_30;
+use sova\multiprotocol\protocol\v1_19_0\Protocol1_19_0;
 use sova\multiprotocol\protocol\v1_19_10\Protocol1_19_10;
 use sova\multiprotocol\protocol\v1_19_20\Protocol1_19_20;
 use sova\multiprotocol\protocol\v1_19_60\Protocol1_19_60;
@@ -92,9 +95,13 @@ final class StartGameRewriter extends TypedPacketRewriter
 		CommonTypes::putString($out, $startGame->multiplayerCorrelationId);
 		CommonTypes::putBool($out, $startGame->enableNewInventorySystem);
 		CommonTypes::putString($out, $startGame->serverSoftwareVersion);
-		$out->writeByteArray($startGame->playerActorProperties->getEncodedNbt());
+		if ($this->isAtLeast(Protocol1_19_0::PROTOCOL)) {
+			$out->writeByteArray($startGame->playerActorProperties->getEncodedNbt());
+		}
 		LE::writeUnsignedLong($out, $startGame->blockPaletteChecksum);
-		CommonTypes::putUUID($out, $startGame->worldTemplateId);
+		if ($this->isAtLeast(Protocol1_19_0::PROTOCOL)) {
+			CommonTypes::putUUID($out, $startGame->worldTemplateId);
+		}
 		if ($this->isAtLeast(Protocol1_19_20::PROTOCOL)) {
 			CommonTypes::putBool($out, $startGame->enableClientSideChunkGeneration);
 		}
@@ -105,7 +112,11 @@ final class StartGameRewriter extends TypedPacketRewriter
 
 	private function writeLevelSettings(ByteBufferWriter $out, LevelSettings $settings): void
 	{
-		LE::writeUnsignedLong($out, $settings->seed);
+		if ($this->isAtLeast(Protocol1_18_30::PROTOCOL)) {
+			LE::writeUnsignedLong($out, $settings->seed);
+		} else {
+			VarInt::writeSignedInt($out, Binary::signInt($settings->seed));
+		}
 		$settings->spawnSettings->write($out);
 		VarInt::writeSignedInt($out, $settings->generator);
 		VarInt::writeSignedInt($out, $settings->worldGamemode);

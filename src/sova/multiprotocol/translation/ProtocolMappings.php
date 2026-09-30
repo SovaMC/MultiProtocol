@@ -22,8 +22,9 @@ final readonly class ProtocolMappings
 	/**
 	 * @param array<string, string> $itemRenames
 	 * @param array<string, string> $blockRenames
+	 * @param array<string, string> $itemAliases
 	 */
-	public static function build(ProtocolData $server, ProtocolData $client, array $itemRenames = [], array $blockRenames = []): self
+	public static function build(ProtocolData $server, ProtocolData $client, array $itemRenames = [], array $blockRenames = [], array $itemAliases = []): self
 	{
 		$blocks = BlockMapping::build($server->blockStates, $client->blockStates, $blockRenames);
 
@@ -33,7 +34,8 @@ final readonly class ProtocolMappings
 			GlobalItemDataHandlers::getUpgrader()->getIdMetaUpgrader(),
 			new ItemIdMetaDowngrader($client->items, $client->itemSchemaId),
 			new ItemIdMetaDowngrader($server->items, $server->itemSchemaId),
-			$itemRenames
+			$itemRenames,
+			$itemAliases
 		);
 
 		return new self($blocks, $items, new ItemTranslator($items, $blocks));

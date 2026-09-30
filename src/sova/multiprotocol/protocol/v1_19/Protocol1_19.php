@@ -40,6 +40,7 @@ use sova\multiprotocol\protocol\v1_19\rewriter\StructureBlockUpdateRewriter;
 use sova\multiprotocol\protocol\v1_19\rewriter\TextRewriter;
 use sova\multiprotocol\protocol\v1_19\rewriter\UnlockedRecipesRewriter;
 use sova\multiprotocol\protocol\v1_19\rewriter\UpdateAttributesRewriter;
+use sova\multiprotocol\protocol\v1_19_0\Protocol1_19_0;
 use sova\multiprotocol\protocol\v1_19_10\Protocol1_19_10;
 use sova\multiprotocol\protocol\v1_19_20\Protocol1_19_20;
 use sova\multiprotocol\protocol\v1_19_30\Protocol1_19_30;
@@ -52,6 +53,7 @@ use sova\multiprotocol\protocol\v1_19_80\Protocol1_19_80;
 use sova\multiprotocol\translation\ability\AbilitiesFilter;
 use sova\multiprotocol\translation\actor\ActorIdentifiers;
 use sova\multiprotocol\translation\block\LegacySignTranslator;
+use sova\multiprotocol\translation\command\ArgumentTypeRemap;
 use sova\multiprotocol\translation\entity\EntityFlagsTranslator;
 use sova\multiprotocol\translation\inventory\ContainerSlotTranslator;
 use sova\multiprotocol\translation\inventory\LegacyItemStackRequestReader;
@@ -71,6 +73,9 @@ abstract class Protocol1_19 extends Protocol
 	private const int ADVENTURE_SETTINGS_PACKET = 0x37;
 	private const int RECIPE_BOOK_CONTAINER = 21;
 	private const int CAN_DASH_FLAG = 46;
+	private const int PERMISSION_ARGUMENT_TYPES = 32;
+	private const int PERMISSION_ARGUMENT_TYPE_COUNT = 5;
+	private const int STRING_ARGUMENT_TYPE = 39;
 
 	private const array REMOVED_ABILITIES = [
 		AbilitiesLayer::ABILITY_PRIVILEGED_BUILDER,
@@ -165,7 +170,7 @@ abstract class Protocol1_19 extends Protocol
 	protected function registerPackets(PacketRegistry $packets): void
 	{
 		$context = new TranslationContext($this->mappings(), self::CODEC_PROTOCOL, $this->isBefore(Protocol1_19_80::PROTOCOL) ? new LegacySignTranslator() : null);
-		$identifiers = ActorIdentifiers::load($this->resources->getActorIdentifiersFile(), self::ACTOR_OVERRIDES);
+		$identifiers = ActorIdentifiers::load($this->resources->getActorIdentifiersFile(), $this->actorOverrides());
 
 		$this->registerServerbound($packets);
 
@@ -191,6 +196,34 @@ abstract class Protocol1_19 extends Protocol
 	{
 	}
 
+	/**
+	 * @return array<string, string>
+	 */
+	protected function actorOverrides(): array
+	{
+		return self::ACTOR_OVERRIDES;
+	}
+
+	/**
+	 * @return list<ArgumentTypeRemap>
+	 */
+	protected function commandArgumentRemaps(): array
+	{
+		if (!$this->isBefore(Protocol1_19_80::PROTOCOL)) {
+			return [];
+		}
+
+		return [new ArgumentTypeRemap(self::PERMISSION_ARGUMENT_TYPES, self::PERMISSION_ARGUMENT_TYPE_COUNT, self::STRING_ARGUMENT_TYPE)];
+	}
+
+	/**
+	 * @return array<int, int>
+	 */
+	protected function legacyActionTypes(): array
+	{
+		return [];
+	}
+
 	protected function isBefore(int $protocolId): bool
 	{
 		return $this->version->id < $protocolId;
@@ -203,11 +236,12 @@ abstract class Protocol1_19 extends Protocol
 			self::CODEC_PROTOCOL,
 			$this->isBefore(Protocol1_19_30::PROTOCOL),
 			!$this->isBefore(Protocol1_19_40::PROTOCOL),
-			$slots
+			$slots,
+			$this->legacyActionTypes()
 		) : null;
 
 		if ($this->isBefore(Protocol1_19_70::PROTOCOL)) {
-			$packets->add(new PlayerAuthInputRewriter(self::CODEC_PROTOCOL, $requests));
+			$packets->add(new PlayerAuthInputRewriter(self::CODEC_PROTOCOL, $requests, !$this->isBefore(Protocol1_19_0::PROTOCOL)));
 		}
 		if ($this->isBefore(Protocol1_19_80::PROTOCOL)) {
 			$packets
@@ -233,8 +267,9 @@ abstract class Protocol1_19 extends Protocol
 
 	private function registerClientbound(PacketRegistry $packets, TranslationContext $context): void
 	{
-		if ($this->isBefore(Protocol1_19_80::PROTOCOL)) {
-			$packets->add(new AvailableCommandsRewriter(self::CODEC_PROTOCOL));
+		$remaps = $this->commandArgumentRemaps();
+		if ($remaps !== []) {
+			$packets->add(new AvailableCommandsRewriter(self::CODEC_PROTOCOL, ...$remaps));
 		}
 
 		if ($this->isBefore(Protocol1_19_70::PROTOCOL)) {
@@ -280,7 +315,7 @@ abstract class Protocol1_19 extends Protocol
 
 		if ($this->isBefore(Protocol1_19_30::PROTOCOL)) {
 			$packets->add(
-				new CraftingDataRewriter($context->mappings->items, self::CODEC_PROTOCOL),
+				new CraftingDataRewriter($context->mappings->items->withoutRenames(), self::CODEC_PROTOCOL),
 				new TextRewriter()
 			);
 		}
@@ -321,22 +356,23 @@ abstract class Protocol1_19 extends Protocol
 			ProtocolData::native(self::CODEC_PROTOCOL),
 			$this->getClientData(),
 			$this->itemReplacements(),
-			$this->blockReplacements()
+			$this->blockReplacements(),
+			self::itemAliases()
 		);
 	}
 
 	/**
 	 * @return array<string, string>
 	 */
-	private function itemReplacements(): array
+	protected function itemReplacements(): array
 	{
-		return $this->hangingSignReplacements('minecraft:oak_sign') + self::potteryReplacements() + self::cherryReplacements() + self::REPLACEMENTS + self::EXPERIMENTAL_REPLACEMENTS;
+		return $this->hangingSignReplacements('minecraft:oak_sign') + self::cherryReplacements() + self::REPLACEMENTS + self::EXPERIMENTAL_REPLACEMENTS;
 	}
 
 	/**
 	 * @return array<string, string>
 	 */
-	private function blockReplacements(): array
+	protected function blockReplacements(): array
 	{
 		return $this->hangingSignReplacements('minecraft:standing_sign') + self::cherryReplacements() + self::REPLACEMENTS + self::BLOCK_ONLY_REPLACEMENTS + self::EXPERIMENTAL_REPLACEMENTS;
 	}
@@ -361,7 +397,7 @@ abstract class Protocol1_19 extends Protocol
 	/**
 	 * @return array<string, string>
 	 */
-	private static function potteryReplacements(): array
+	private static function itemAliases(): array
 	{
 		$replacements = [];
 		foreach (self::POTTERY_PATTERNS as $pattern) {

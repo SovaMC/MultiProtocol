@@ -23,11 +23,15 @@ use function is_int;
 
 final readonly class LegacyItemStackRequestReader
 {
+	/**
+	 * @param array<int, int> $innerTypes
+	 */
 	public function __construct(
 		private int $codecProtocolId,
 		private bool $legacyIngredients,
 		private bool $hasFilterStringCause,
-		private ?ContainerSlotTranslator $slots
+		private ?ContainerSlotTranslator $slots,
+		private array $innerTypes = []
 	) {
 	}
 
@@ -61,6 +65,7 @@ final readonly class LegacyItemStackRequestReader
 	private function readAction(ByteBufferReader $in): ItemStackRequestAction
 	{
 		$innerTypeId = Byte::readUnsigned($in);
+		$innerTypeId = $this->innerTypes[$innerTypeId] ?? $innerTypeId;
 		$typeId = array_search($innerTypeId, ItemStackRequestActionType::INNER_TYPES, true);
 		if (!is_int($typeId)) {
 			throw new PacketDecodeException('Unhandled item stack request action type ' . $innerTypeId);

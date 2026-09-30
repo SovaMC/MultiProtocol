@@ -29,7 +29,7 @@ final class CreativeContentRewriter extends TypedPacketRewriter
 
 		$entries = [];
 		foreach ($content->getItems() as $entry) {
-			$item = $this->context->items->stackOrNull($packet->direction, $entry->getItem());
+			$item = $this->context->exactItems->stackOrNull($packet->direction, $entry->getItem());
 			if ($item !== null) {
 				$entries[] = new CreativeItemEntry($entry->getEntryId(), $item, $entry->getGroupId());
 			}

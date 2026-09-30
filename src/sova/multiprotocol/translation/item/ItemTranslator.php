@@ -98,6 +98,11 @@ final readonly class ItemTranslator
 		return $direction === Direction::CLIENTBOUND ? $this->clientFallback : $this->serverFallback;
 	}
 
+	public function withoutRenames(): self
+	{
+		return new self($this->items->withoutRenames(), $this->blocks);
+	}
+
 	private static function resolveFallback(ItemTypeDictionary $dictionary): int
 	{
 		foreach ([self::FALLBACK_ITEM, BlockTypeNames::BARRIER] as $name) {
