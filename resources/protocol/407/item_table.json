@@ -2483,7 +2483,7 @@
         "runtime_id": 322,
         "component_based": false
     },
-    "minecraft:oak_sign": {
+    "minecraft:sign": {
         "runtime_id": 323,
         "component_based": false
     },
@@ -2535,7 +2535,7 @@
         "runtime_id": 337,
         "component_based": false
     },
-    "minecraft:sugar_cane": {
+    "minecraft:reeds": {
         "runtime_id": 338,
         "component_based": false
     },
@@ -2575,11 +2575,11 @@
         "runtime_id": 348,
         "component_based": false
     },
-    "minecraft:cod": {
+    "minecraft:fish": {
         "runtime_id": 349,
         "component_based": false
     },
-    "minecraft:cooked_cod": {
+    "minecraft:cooked_fish": {
         "runtime_id": 350,
         "component_based": false
     },
@@ -2611,7 +2611,7 @@
         "runtime_id": 357,
         "component_based": false
     },
-    "minecraft:filled_map": {
+    "minecraft:map": {
         "runtime_id": 358,
         "component_based": false
     },
@@ -2619,7 +2619,7 @@
         "runtime_id": 359,
         "component_based": false
     },
-    "minecraft:melon_slice": {
+    "minecraft:melon": {
         "runtime_id": 360,
         "component_based": false
     },
@@ -2707,7 +2707,7 @@
         "runtime_id": 381,
         "component_based": false
     },
-    "minecraft:glistering_melon_slice": {
+    "minecraft:speckled_melon": {
         "runtime_id": 382,
         "component_based": false
     },
@@ -2719,7 +2719,7 @@
         "runtime_id": 384,
         "component_based": false
     },
-    "minecraft:fire_charge": {
+    "minecraft:fireball": {
         "runtime_id": 385,
         "component_based": false
     },
@@ -2759,7 +2759,7 @@
         "runtime_id": 394,
         "component_based": false
     },
-    "minecraft:empty_map": {
+    "minecraft:emptymap": {
         "runtime_id": 395,
         "component_based": false
     },
@@ -2771,11 +2771,11 @@
         "runtime_id": 397,
         "component_based": false
     },
-    "minecraft:carrot_on_a_stick": {
+    "minecraft:carrotonastick": {
         "runtime_id": 398,
         "component_based": false
     },
-    "minecraft:nether_star": {
+    "minecraft:netherstar": {
         "runtime_id": 399,
         "component_based": false
     },
@@ -2783,11 +2783,11 @@
         "runtime_id": 400,
         "component_based": false
     },
-    "minecraft:firework_rocket": {
+    "minecraft:fireworks": {
         "runtime_id": 401,
         "component_based": false
     },
-    "minecraft:firework_star": {
+    "minecraft:fireworkscharge": {
         "runtime_id": 402,
         "component_based": false
     },
@@ -2843,19 +2843,19 @@
         "runtime_id": 415,
         "component_based": false
     },
-    "minecraft:leather_horse_armor": {
+    "minecraft:horsearmorleather": {
         "runtime_id": 416,
         "component_based": false
     },
-    "minecraft:iron_horse_armor": {
+    "minecraft:horsearmoriron": {
         "runtime_id": 417,
         "component_based": false
     },
-    "minecraft:golden_horse_armor": {
+    "minecraft:horsearmorgold": {
         "runtime_id": 418,
         "component_based": false
     },
-    "minecraft:diamond_horse_armor": {
+    "minecraft:horsearmordiamond": {
         "runtime_id": 419,
         "component_based": false
     },
@@ -2871,11 +2871,11 @@
         "runtime_id": 422,
         "component_based": false
     },
-    "minecraft:mutton": {
+    "minecraft:muttonraw": {
         "runtime_id": 423,
         "component_based": false
     },
-    "minecraft:cooked_mutton": {
+    "minecraft:muttoncooked": {
         "runtime_id": 424,
         "component_based": false
     },
@@ -2911,7 +2911,7 @@
         "runtime_id": 432,
         "component_based": false
     },
-    "minecraft:popped_chorus_fruit": {
+    "minecraft:chorus_fruit_popped": {
         "runtime_id": 433,
         "component_based": false
     },
@@ -2963,7 +2963,7 @@
         "runtime_id": 449,
         "component_based": false
     },
-    "minecraft:totem_of_undying": {
+    "minecraft:totem": {
         "runtime_id": 450,
         "component_based": false
     },
@@ -2999,7 +2999,7 @@
         "runtime_id": 460,
         "component_based": false
     },
-    "minecraft:tropical_fish": {
+    "minecraft:clownfish": {
         "runtime_id": 461,
         "component_based": false
     },
@@ -3019,7 +3019,7 @@
         "runtime_id": 465,
         "component_based": false
     },
-    "minecraft:enchanted_golden_apple": {
+    "minecraft:appleenchanted": {
         "runtime_id": 466,
         "component_based": false
     },
@@ -3027,7 +3027,7 @@
         "runtime_id": 467,
         "component_based": false
     },
-    "minecraft:scute": {
+    "minecraft:turtle_shell_piece": {
         "runtime_id": 468,
         "component_based": false
     },
@@ -3059,7 +3059,7 @@
         "runtime_id": 475,
         "component_based": false
     },
-    "minecraft:dark_oak_sign": {
+    "minecraft:darkoak_sign": {
         "runtime_id": 476,
         "component_based": false
     },
@@ -3075,51 +3075,51 @@
         "runtime_id": 499,
         "component_based": false
     },
-    "minecraft:music_disc_13": {
+    "minecraft:record_13": {
         "runtime_id": 500,
         "component_based": false
     },
-    "minecraft:music_disc_cat": {
+    "minecraft:record_cat": {
         "runtime_id": 501,
         "component_based": false
     },
-    "minecraft:music_disc_blocks": {
+    "minecraft:record_blocks": {
         "runtime_id": 502,
         "component_based": false
     },
-    "minecraft:music_disc_chirp": {
+    "minecraft:record_chirp": {
         "runtime_id": 503,
         "component_based": false
     },
-    "minecraft:music_disc_far": {
+    "minecraft:record_far": {
         "runtime_id": 504,
         "component_based": false
     },
-    "minecraft:music_disc_mall": {
+    "minecraft:record_mall": {
         "runtime_id": 505,
         "component_based": false
     },
-    "minecraft:music_disc_mellohi": {
+    "minecraft:record_mellohi": {
         "runtime_id": 506,
         "component_based": false
     },
-    "minecraft:music_disc_stal": {
+    "minecraft:record_stal": {
         "runtime_id": 507,
         "component_based": false
     },
-    "minecraft:music_disc_strad": {
+    "minecraft:record_strad": {
         "runtime_id": 508,
         "component_based": false
     },
-    "minecraft:music_disc_ward": {
+    "minecraft:record_ward": {
         "runtime_id": 509,
         "component_based": false
     },
-    "minecraft:music_disc_11": {
+    "minecraft:record_11": {
         "runtime_id": 510,
         "component_based": false
     },
-    "minecraft:music_disc_wait": {
+    "minecraft:record_wait": {
         "runtime_id": 511,
         "component_based": false
     },

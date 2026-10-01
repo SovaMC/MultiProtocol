@@ -111,6 +111,46 @@ abstract class Protocol1_16 extends Protocol1_17
 		'minecraft:powder_snow_bucket' => 'minecraft:bucket',
 	];
 
+	private const array LEGACY_ITEM_NAMES = [
+		'minecraft:carrot_on_a_stick' => 'minecraft:carrotonastick',
+		'minecraft:cod' => 'minecraft:fish',
+		'minecraft:cooked_cod' => 'minecraft:cooked_fish',
+		'minecraft:cooked_mutton' => 'minecraft:muttoncooked',
+		'minecraft:dark_oak_sign' => 'minecraft:darkoak_sign',
+		'minecraft:diamond_horse_armor' => 'minecraft:horsearmordiamond',
+		'minecraft:empty_map' => 'minecraft:emptymap',
+		'minecraft:enchanted_golden_apple' => 'minecraft:appleenchanted',
+		'minecraft:filled_map' => 'minecraft:map',
+		'minecraft:fire_charge' => 'minecraft:fireball',
+		'minecraft:firework_rocket' => 'minecraft:fireworks',
+		'minecraft:firework_star' => 'minecraft:fireworkscharge',
+		'minecraft:glistering_melon_slice' => 'minecraft:speckled_melon',
+		'minecraft:golden_horse_armor' => 'minecraft:horsearmorgold',
+		'minecraft:iron_horse_armor' => 'minecraft:horsearmoriron',
+		'minecraft:leather_horse_armor' => 'minecraft:horsearmorleather',
+		'minecraft:melon_slice' => 'minecraft:melon',
+		'minecraft:music_disc_11' => 'minecraft:record_11',
+		'minecraft:music_disc_13' => 'minecraft:record_13',
+		'minecraft:music_disc_blocks' => 'minecraft:record_blocks',
+		'minecraft:music_disc_cat' => 'minecraft:record_cat',
+		'minecraft:music_disc_chirp' => 'minecraft:record_chirp',
+		'minecraft:music_disc_far' => 'minecraft:record_far',
+		'minecraft:music_disc_mall' => 'minecraft:record_mall',
+		'minecraft:music_disc_mellohi' => 'minecraft:record_mellohi',
+		'minecraft:music_disc_stal' => 'minecraft:record_stal',
+		'minecraft:music_disc_strad' => 'minecraft:record_strad',
+		'minecraft:music_disc_wait' => 'minecraft:record_wait',
+		'minecraft:music_disc_ward' => 'minecraft:record_ward',
+		'minecraft:mutton' => 'minecraft:muttonraw',
+		'minecraft:nether_star' => 'minecraft:netherstar',
+		'minecraft:oak_sign' => 'minecraft:sign',
+		'minecraft:popped_chorus_fruit' => 'minecraft:chorus_fruit_popped',
+		'minecraft:scute' => 'minecraft:turtle_shell_piece',
+		'minecraft:sugar_cane' => 'minecraft:reeds',
+		'minecraft:totem_of_undying' => 'minecraft:totem',
+		'minecraft:tropical_fish' => 'minecraft:clownfish',
+	];
+
 	private const array LEGACY_BLOCK_REPLACEMENTS = [
 		'minecraft:blackstone_double_slab' => 'minecraft:blackstone_slab',
 		'minecraft:polished_blackstone_double_slab' => 'minecraft:polished_blackstone_slab',
@@ -180,6 +220,13 @@ abstract class Protocol1_16 extends Protocol1_17
 	protected function itemReplacements(): array
 	{
 		return self::replacements() + parent::itemReplacements();
+	}
+
+	protected function itemAliases(): array
+	{
+		$legacy = $this->isBefore(Protocol1_16_100::PROTOCOL) ? self::LEGACY_ITEM_NAMES : [];
+
+		return $legacy + parent::itemAliases();
 	}
 
 	protected function blockReplacements(): array

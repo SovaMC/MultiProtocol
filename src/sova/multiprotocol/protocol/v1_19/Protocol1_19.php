@@ -441,7 +441,7 @@ abstract class Protocol1_19 extends Protocol
 			$this->getClientData(),
 			$this->itemReplacements(),
 			$this->blockReplacements(),
-			self::itemAliases()
+			$this->itemAliases()
 		);
 	}
 
@@ -481,7 +481,7 @@ abstract class Protocol1_19 extends Protocol
 	/**
 	 * @return array<string, string>
 	 */
-	private static function itemAliases(): array
+	protected function itemAliases(): array
 	{
 		$replacements = [];
 		foreach (self::POTTERY_PATTERNS as $pattern) {
