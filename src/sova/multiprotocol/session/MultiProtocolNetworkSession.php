@@ -95,6 +95,16 @@ class MultiProtocolNetworkSession extends NetworkSession
 			return;
 		}
 
+		if ($this->protocolSession?->has(DeferredPackets::class) === true && $this->isConnected()) {
+			$deferred = $this->protocolSession->get(DeferredPackets::class)->drain();
+			try {
+				$this->handleTranslated($deferred);
+			} catch (PacketHandlingException $e) {
+				$this->disconnectWithError('Bad packet: ' . $e->getMessage());
+				return;
+			}
+		}
+
 		parent::tick();
 	}
 

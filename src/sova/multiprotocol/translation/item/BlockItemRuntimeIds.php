@@ -46,22 +46,19 @@ final class BlockItemRuntimeIds
 		return new self(static function () use ($protocolId): Closure {
 			$suffix = self::DATA_SUFFIXES[$protocolId] ?? '';
 			$items = TypeConverter::getInstance($protocolId)->getItemTypeDictionary();
-			$serverBlockItems = BlockItemIdMap::getInstance();
 			$blockItems = new BlockItemIdMap(self::readJson(BedrockDataFiles::BLOCK_ID_TO_ITEM_ID_MAP_JSON, $suffix));
 			$states = self::statesByIdMeta($suffix);
 
-			return static function (int $id, int $meta) use ($items, $serverBlockItems, $blockItems, $states): ?int {
+			return static function (int $id, int $meta) use ($items, $blockItems, $states): ?int {
 				try {
-					$itemId = $items->fromIntId($id);
+					$blockId = $blockItems->lookupBlockId($items->fromIntId($id));
 				} catch (InvalidArgumentException) {
 					return null;
 				}
 
-				if ($serverBlockItems->lookupBlockId($itemId) === null) {
+				if ($blockId === null) {
 					return null;
 				}
-
-				$blockId = $blockItems->lookupBlockId($itemId) ?? $itemId;
 
 				return $states[$blockId . ':' . $meta] ?? $states[$blockId . ':0'] ?? null;
 			};

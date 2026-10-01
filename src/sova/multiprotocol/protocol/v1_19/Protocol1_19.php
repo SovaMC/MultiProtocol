@@ -72,6 +72,7 @@ use sova\multiprotocol\translation\ProtocolData;
 use sova\multiprotocol\translation\ProtocolMappings;
 use sova\multiprotocol\translation\rewriter\ability\AddPlayerAbilitiesRewriter;
 use sova\multiprotocol\translation\rewriter\ability\UpdateAbilitiesRewriter;
+use sova\multiprotocol\translation\rewriter\block\SignEditRewriter;
 use sova\multiprotocol\translation\rewriter\StandardRewriters;
 use sova\multiprotocol\translation\skin\SkinFormat;
 use sova\multiprotocol\translation\skin\SkinLayout;
@@ -225,6 +226,10 @@ abstract class Protocol1_19 extends Protocol
 			->add(...StandardRewriters::blocks($context))
 			->add(...StandardRewriters::items($context))
 			->add(...StandardRewriters::actors($identifiers, self::CODEC_PROTOCOL));
+
+		if ($this->isBefore(Protocol1_19_80::PROTOCOL)) {
+			$packets->add(new SignEditRewriter(self::CODEC_PROTOCOL));
+		}
 
 		$this->registerClientbound($packets, $context);
 

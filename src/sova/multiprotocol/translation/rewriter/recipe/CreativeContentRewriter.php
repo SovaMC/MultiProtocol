@@ -20,10 +20,15 @@ use function count;
  */
 final class CreativeContentRewriter extends TypedPacketRewriter
 {
+	private const string PLACEHOLDER_ITEM = 'minecraft:info_update';
+
+	private readonly int $placeholderId;
+
 	public function __construct(
 		private readonly TranslationContext $context
 	) {
 		parent::__construct(CreativeContentPacket::class, $context->codecProtocolId, Direction::CLIENTBOUND);
+		$this->placeholderId = $context->mappings->items->serverDictionary->fromStringId(self::PLACEHOLDER_ITEM);
 	}
 
 	public function rewrite(PacketWrapper $packet): void
@@ -32,6 +37,9 @@ final class CreativeContentRewriter extends TypedPacketRewriter
 
 		$entries = [];
 		foreach ($content->getItems() as $entry) {
+			if ($entry->getItem()->getId() === $this->placeholderId) {
+				continue;
+			}
 			$item = $this->context->exactItems->stackOrNull($packet->direction, $entry->getItem());
 			if ($item !== null) {
 				$entries[] = new CreativeItemEntry($entry->getEntryId(), $item, $entry->getGroupId());
