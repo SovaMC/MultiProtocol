@@ -22,7 +22,7 @@ use sova\multiprotocol\protocol\v1_16_210\Protocol1_16_210;
 use sova\multiprotocol\protocol\v1_16_220\Protocol1_16_220;
 use sova\multiprotocol\protocol\v1_17_30\Protocol1_17_30;
 use sova\multiprotocol\protocol\v1_18_0\Protocol1_18_0;
-use sova\multiprotocol\protocol\v1_19\rewriter\ActorFlagsRewriter;
+use sova\multiprotocol\protocol\v1_19\rewriter\ActorMetadataRewriter;
 use sova\multiprotocol\protocol\v1_19\rewriter\AddActorRewriter;
 use sova\multiprotocol\protocol\v1_19\rewriter\AddPlayerRewriter;
 use sova\multiprotocol\protocol\v1_19\rewriter\AdventureSettingsRewriter;
@@ -63,6 +63,7 @@ use sova\multiprotocol\translation\block\BiomeTranslator;
 use sova\multiprotocol\translation\block\LegacySignTranslator;
 use sova\multiprotocol\translation\command\ArgumentTypeRemap;
 use sova\multiprotocol\translation\entity\EntityFlagsTranslator;
+use sova\multiprotocol\translation\entity\EntityMetadataKeyTranslator;
 use sova\multiprotocol\translation\inventory\ContainerSlotTranslator;
 use sova\multiprotocol\translation\inventory\LegacyItemStackRequestReader;
 use sova\multiprotocol\translation\inventory\LegacyTransactionReader;
@@ -373,11 +374,12 @@ abstract class Protocol1_19 extends Protocol
 
 		if ($this->isBefore(Protocol1_19_50::PROTOCOL)) {
 			$flags = new EntityFlagsTranslator([self::CAN_DASH_FLAG]);
+			$keys = $this->isBefore(Protocol1_19_40::PROTOCOL) ? new EntityMetadataKeyTranslator(true, $this->isBefore(Protocol1_16_210::PROTOCOL)) : null;
 			$packets->add(
-				new ActorFlagsRewriter(AddActorPacket::class, $flags, self::CODEC_PROTOCOL),
-				new ActorFlagsRewriter(AddPlayerPacket::class, $flags, self::CODEC_PROTOCOL),
-				new ActorFlagsRewriter(AddItemActorPacket::class, $flags, self::CODEC_PROTOCOL),
-				new ActorFlagsRewriter(SetActorDataPacket::class, $flags, self::CODEC_PROTOCOL),
+				new ActorMetadataRewriter(AddActorPacket::class, $flags, $keys, self::CODEC_PROTOCOL),
+				new ActorMetadataRewriter(AddPlayerPacket::class, $flags, $keys, self::CODEC_PROTOCOL),
+				new ActorMetadataRewriter(AddItemActorPacket::class, $flags, $keys, self::CODEC_PROTOCOL),
+				new ActorMetadataRewriter(SetActorDataPacket::class, $flags, $keys, self::CODEC_PROTOCOL),
 				new ItemStackResponseRewriter(new ContainerSlotTranslator(self::RECIPE_BOOK_CONTAINER), $this->version->id, self::CODEC_PROTOCOL)
 			);
 		}

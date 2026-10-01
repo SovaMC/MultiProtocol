@@ -12,12 +12,13 @@ use sova\multiprotocol\packet\Direction;
 use sova\multiprotocol\packet\PacketWrapper;
 use sova\multiprotocol\packet\TypedPacketRewriter;
 use sova\multiprotocol\translation\entity\EntityFlagsTranslator;
+use sova\multiprotocol\translation\entity\EntityMetadataKeyTranslator;
 
 /**
  * @template T of AddActorPacket|AddPlayerPacket|AddItemActorPacket|SetActorDataPacket
  * @extends TypedPacketRewriter<T>
  */
-final class ActorFlagsRewriter extends TypedPacketRewriter
+final class ActorMetadataRewriter extends TypedPacketRewriter
 {
 	/**
 	 * @param class-string<T> $packetClass
@@ -25,6 +26,7 @@ final class ActorFlagsRewriter extends TypedPacketRewriter
 	public function __construct(
 		string $packetClass,
 		private readonly EntityFlagsTranslator $flags,
+		private readonly ?EntityMetadataKeyTranslator $keys,
 		int $codecProtocolId
 	) {
 		parent::__construct($packetClass, $codecProtocolId, Direction::CLIENTBOUND);
@@ -34,6 +36,9 @@ final class ActorFlagsRewriter extends TypedPacketRewriter
 	{
 		$metadata = $this->peek($packet)->metadata;
 		$translated = $this->flags->toClient($metadata);
+		if ($this->keys !== null) {
+			$translated = $this->keys->toClient($translated);
+		}
 		if ($translated !== $metadata) {
 			$this->decode($packet)->metadata = $translated;
 		}
