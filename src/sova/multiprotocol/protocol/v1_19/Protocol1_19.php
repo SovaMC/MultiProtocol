@@ -84,6 +84,9 @@ abstract class Protocol1_19 extends Protocol
 
 	private const int PHOTO_INFO_REQUEST_PACKET = 0xad;
 	private const int ADVENTURE_SETTINGS_PACKET = 0x37;
+	private const int ITEM_FRAME_DROP_ITEM_PACKET = 0x47;
+	private const int FILTER_TEXT_PACKET = 0xa3;
+	private const int CLIENT_CHEAT_ABILITY_PACKET = 0xc5;
 	private const int RECIPE_BOOK_CONTAINER = 21;
 	private const int CAN_DASH_FLAG = 46;
 
@@ -304,6 +307,8 @@ abstract class Protocol1_19 extends Protocol
 			$this->legacyActionTypes(),
 			$context->legacyItems
 		) : null;
+
+		$packets->cancel(Direction::SERVERBOUND, self::ITEM_FRAME_DROP_ITEM_PACKET, self::FILTER_TEXT_PACKET, self::CLIENT_CHEAT_ABILITY_PACKET);
 
 		if ($this->isBefore(Protocol1_19_70::PROTOCOL)) {
 			$packets->add(new PlayerAuthInputRewriter(

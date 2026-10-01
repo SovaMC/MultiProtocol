@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace sova\multiprotocol\protocol\v1_16;
 
+use pocketmine\network\mcpe\protocol\ProtocolInfo;
 use pocketmine\network\mcpe\protocol\types\entity\EntityIds;
+use sova\multiprotocol\packet\Direction;
 use sova\multiprotocol\packet\PacketRegistry;
 use sova\multiprotocol\protocol\v1_16\rewriter\BlockBreakTransactionRewriter;
 use sova\multiprotocol\protocol\v1_16\rewriter\CameraShakeRewriter;
@@ -23,6 +25,8 @@ use function str_contains;
 
 abstract class Protocol1_16 extends Protocol1_17
 {
+	private const int ACTOR_FALL_PACKET = 0x25;
+
 	private const array ACTION_TYPES_422 = [
 		7 => 9, 8 => 10, 9 => 12, 10 => 13, 11 => 14, 12 => 15, 13 => 18, 14 => 19,
 	];
@@ -175,15 +179,35 @@ abstract class Protocol1_16 extends Protocol1_17
 	{
 		parent::registerVersionPackets($packets);
 
-		$packets->add(new GameRulesChangedRewriter(self::CODEC_PROTOCOL));
-		if ($this->isBefore(Protocol1_16_210::PROTOCOL)) {
-			$packets->add(
-				new CameraShakeRewriter(),
-				new PlayerActionRewriter(self::CODEC_PROTOCOL),
-				new BlockBreakTransactionRewriter(self::CODEC_PROTOCOL)
+		$packets
+			->add(new GameRulesChangedRewriter(self::CODEC_PROTOCOL))
+			->cancel(
+				Direction::CLIENTBOUND,
+				ProtocolInfo::SYNC_ACTOR_PROPERTY_PACKET,
+				ProtocolInfo::ADD_VOLUME_ENTITY_PACKET,
+				ProtocolInfo::REMOVE_VOLUME_ENTITY_PACKET
 			);
+		if ($this->isBefore(Protocol1_16_210::PROTOCOL)) {
+			$packets
+				->add(
+					new CameraShakeRewriter(),
+					new PlayerActionRewriter(self::CODEC_PROTOCOL),
+					new BlockBreakTransactionRewriter(self::CODEC_PROTOCOL)
+				)
+				->cancel(Direction::CLIENTBOUND, ProtocolInfo::CLIENTBOUND_DEBUG_RENDERER_PACKET);
 		}
 		if ($this->isBefore(Protocol1_16_100::PROTOCOL)) {
+			$packets
+				->cancel(Direction::SERVERBOUND, self::ACTOR_FALL_PACKET)
+				->cancel(
+					Direction::CLIENTBOUND,
+					ProtocolInfo::MOTION_PREDICTION_HINTS_PACKET,
+					ProtocolInfo::ANIMATE_ENTITY_PACKET,
+					ProtocolInfo::CAMERA_SHAKE_PACKET,
+					ProtocolInfo::PLAYER_FOG_PACKET,
+					ProtocolInfo::CORRECT_PLAYER_MOVE_PREDICTION_PACKET,
+					ProtocolInfo::ITEM_REGISTRY_PACKET
+				);
 			$packets->add(
 				new ResourcePackStackRewriter(self::CODEC_PROTOCOL),
 				new ContainerCloseRewriter(),
