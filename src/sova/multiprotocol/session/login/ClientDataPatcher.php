@@ -14,6 +14,7 @@ use stdClass;
 use function array_find;
 use function class_exists;
 use function implode;
+use function in_array;
 use function is_array;
 use function is_string;
 use function json_decode;
@@ -32,6 +33,11 @@ final class ClientDataPatcher
 
 	private const array KNOWN_DEFAULTS = [
 		'TrustedSkin' => true,
+		'ArmSize' => 'wide',
+	];
+
+	private const array ALLOWED_VALUES = [
+		'ArmSize' => ['slim', 'wide'],
 	];
 
 	/** @var array<class-string, array{defaults: array<string, mixed>, arrays: array<string, class-string>}> */
@@ -71,7 +77,8 @@ final class ClientDataPatcher
 
 		$patched = false;
 		foreach ($schema['defaults'] as $name => $default) {
-			if (!property_exists($object, $name)) {
+			$allowed = self::ALLOWED_VALUES[$name] ?? null;
+			if (!property_exists($object, $name) || ($allowed !== null && !in_array($object->{$name}, $allowed, true))) {
 				$object->{$name} = $default;
 				$patched = true;
 			}
