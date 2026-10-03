@@ -74,6 +74,7 @@ use sova\multiprotocol\translation\ProtocolMappings;
 use sova\multiprotocol\translation\rewriter\ability\AddPlayerAbilitiesRewriter;
 use sova\multiprotocol\translation\rewriter\ability\UpdateAbilitiesRewriter;
 use sova\multiprotocol\translation\rewriter\block\SignEditRewriter;
+use sova\multiprotocol\translation\rewriter\item\LegacyAddItemActorRewriter;
 use sova\multiprotocol\translation\rewriter\StandardRewriters;
 use sova\multiprotocol\translation\skin\SkinFormat;
 use sova\multiprotocol\translation\skin\SkinLayout;
@@ -241,6 +242,10 @@ abstract class Protocol1_19 extends Protocol
 
 		$this->cancelMissingPackets($packets);
 		$this->registerVersionPackets($packets);
+
+		if ($context->legacyItems !== null) {
+			$packets->add(new LegacyAddItemActorRewriter($context->legacyItems, self::CODEC_PROTOCOL));
+		}
 	}
 
 	protected function registerVersionPackets(PacketRegistry $packets): void
